@@ -9,6 +9,121 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+* 29-11-2021
+  - zinit calls no longer silently fail when ices such as `atclone`, 
+`atpull` or `compile` fail. Any hook returning with != 0 will log a warning to
+stdout at runtime:
+
+```zsh
+zinit null atclone'echo "intentional failure"; return 69' \
+  for zdharma-continuum/null
+echo $?
+69
+```
+
+* 28-11-2021
+  - **‼️ BREAKING CHANGE** zinit now requires [jq](https://github.com/stedolan/jq)
+for JSON parsing. This only affects the `pack` ice. Users who do not have jq 
+installed will be greeted with a warning when they try to install packages.
+To install jq with zinit, you can follow [these instructions in the wiki](https://github.com/zdharma-continuum/zinit/wiki/%F0%9F%A7%8A-Recommended-ices#jq)
+  - `zinit pack` now better supports installation from local files (previously
+only relative paths worked), and **custom repositories!**
+By default, zinit uses [zhdarma-continuum/zinit-packages](https://github.com/p/zdharma-continuum/zinit-packages).
+
+To use a custom repo you can set `ZINIT[PACKAGES_REPO]=github_org/repo`.
+
+For installing from a specific branch you can: 
+1. Leverage the `ver` ice (eg: `ver"my-branch`)
+2. Override zinit's default branch with `ZINIT[PACKAGES_BRANCH]=my-branch`
+
+zinit package repos that are not hosted on GitHub can be installed from the
+local filesystem like so:
+`zinit pack"local/path/to/package.json:profile" for mypackage`
+
+* 22-11-2021
+  - We updated zinit's main branch from `master` to `main`. `zinit self-update`
+will try to update the branch locally. If it fails please try to:
+
+```zsh
+cd ${ZINIT[BIN_DIR]}
+git branch -m master main
+git fetch origin
+git branch -u origin/main main
+git remote set-head origin -a
+```
+
+* 21-11-2021
+  - [(z)unit tests](https://github.com/zdharma-continuum/zinit/actions/workflows/tests.yaml)
+have been added to our dear repository. This should help us to sniff out
+some bugs and improve the overall quality of zinit. Stay tuned! More information
+available [here](https://github.com/zdharma-continuum/zinit/pull/96).
+
+* 20-11-2021
+  - zinit is now [XDG compliant](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html).
+This means that the default value of `ZINIT[HOME_DIR]` is now
+`XDG_DATA_HOME/zinit`, ie `HOME/.local/share/zinit`, we won't clutter your
+`HOME` anymore! Fear not though: if you update zinit without moving your
+config to the new default location it will still fall back to `HOME/.zinit` if
+this directory exists. In the same spirit, if you overrode `ZINIT[HOME_DIR]`
+yourself in your `zshrc` we will use that value instead.
+NOTE: Since its rewrite the installer has been installing zinit's repo to
+`XDG_DATA_HOME/zinit/zinit.git` (see 16-11-2021 entry)
+
+* 18-11-2021
+  - The packages (`zinit pack`) have all been migrated to
+[a new repository](https://github.com/zdharma-continuum/zinit-packages). Nothing
+fundamentally changes for users, the original repos have only been archived and
+not deleted, so that older zinit versions can still use these.
+
+For more information, please refer to
+[this issue](https://github.com/zdharma-continuum/zinit/issues/69) and/or to
+[the corresponding PR](https://github.com/zdharma-continuum/zinit/pull/75)
+
+  - The zinit module has been relocated to
+[its own repository](https://github.com/zdharma-continuum/zinit-module)
+
+* 17-11-2021
+  - Containers! If you want to try out zinit inside a container, you can now.
+Several versions of zsh are available, as well as arm64. Check out the available
+tags on [ghcr](https://github.com/zdharma-continuum/zinit/pkgs/container/zinit).
+
+```shell
+docker run -it --rm ghcr.io/zdharma-continuum/zinit:latest
+```
+
+* 16-11-2021
+  - A brand-new installer has been developed. A few new features have been
+added. There are a bunch of new env vars you can set:
+
+    - `NO_INPUT=1`: non-interactive mode (`NO_INPUT=1`)
+    - `NO_EDIT=1`: do not modify `.zshrc`
+    - `ZSHRC=/home/user01/.config/zsh/zshrc`: custom path to your `.zshrc`
+    - `ZINIT_REPO=zdharma-continuum/zinit`: Install zinit from a custom GitHub repo
+    - `ZINIT_BRANCH=master`: zinit branch to install
+    - `ZINIT_COMMIT=master`: zinit commit to install (takes precedence over `ZINIT_BRANCH`)
+    - `ZINIT_INSTALL_DIR=~/.local/share/zinit/zinit.git`: Where to install the zinit repo
+
+⚠️ Please note that the download URL for the installer has changed. It is now:
+https://raw.githubusercontent.com/zdharma-continuum/zinit/HEAD/scripts/install.sh
+
+For more details check out [PR #61](https://github.com/zdharma-continuum/zinit/pull/61)
+
+* 11-11-2021
+  - The annexes repos have been renamed to improve discoverability. They used to
+be called `z-a-${name}` and have been renamed to `zinit-annex-${name}`. You
+don't *need* to update your configs right away since GitHub redirects to the
+new URLs.
+
+* 06-11-2021
+  - 🚧 zinit has a new home: https://github.com/zdharma-continuum/zinit
+    - The migration from @zdharma, @Zsh-Packages and @zinit-zsh is still in
+progress. If you are interested in helping or want to let us know that a
+particular project is missing, please head to
+[I_WANT_TO_HELP](https://github.com/zdharma-continuum/I_WANT_TO_HELP/issues?q=is%3Aissue+is%3Aopen+sort%3Aupdated-desc)
+  - 📚 zinit now ensures that the man dirs under `$ZPFX/man` are created on
+startup. Please note that these directories will not necessarily be part of your
+`manpath`. You may need to set `$MANPATH`. See #8 (and #7) for more details.
+
 * 21-01-2020
   - A few tips for the project rename following the field reports (the issues created
     by users):
@@ -19,7 +134,7 @@ All notable changes to this project will be documented in this file.
 
 * 19-01-2020
   - The name has been changed to **Zinit** based on the results of the
-    [poll](https://github.com/zdharma/zinit/issues/235).
+    [poll](https://web.archive.org/web/20201008014128/https://github.com/zdharma/zinit/issues/235)
   - In general, you don't have to do anything after the name change.
   - Only a run of `zinit update --all` might be necessary.
   - You might also want to rename your `zplugin` calls in `zshrc` to `zinit`.
@@ -30,7 +145,7 @@ All notable changes to this project will be documented in this file.
   - There's a new function, `zpextract`, which unpacks the given file. It supports many
     formats (notably also `dmg` images) – if there's a format that's unsupported please
     don't hesitate to [make a
-    request](https://github.com/zdharma/zinit/issues/new?template=feature_request.md)
+    request](https://github.com/zdharma-continuum/zinit/issues/new?assignees=&labels=%F0%9F%8E%81+feature+request%2C%F0%9F%8E%B2+triage&template=feature-request.yml&title=%F0%9F%8E%81+Feature+request%3A+)
     for it to be added. A few facts:
     - the function is available only at the time of the plugin/snippet installation,
     - it's to be used within `atclone` and `atpull` ices,
@@ -39,7 +154,7 @@ All notable changes to this project will be documented in this file.
     - one other option `--norm` prevents the archive from being deleted upon unpacking.
   - snippets now aren't re-downloaded unless they're newer on the HTTP server; use
     this with the `--norm` option of `zpextract` to prevent unnecessary updates; for
-    example, the [firefox-dev package](https://github.com/Zsh-Packages/firefox-dev)
+    example, the [firefox-dev package](https://github.com/zdharma-continuum/zsh-package-firefox-dev)
     uses this option for this purpose,
   - GitHub doesn't report proper `Last-Modified` HTTP server for the files in the
     repositories so the feature doesn't yet work with such files.
@@ -48,8 +163,8 @@ All notable changes to this project will be documented in this file.
   - The packages have been disconnected from NPM registry and now live only on Zsh
     Packages organization. Publishing to NPM isn't needed.
   - There are two interesting packages,
-    [any-gem](https://github.com/Zsh-Packages/any-gem) and
-    [any-node](https://github.com/Zsh-Packages/any-node). They allow to install any
+    [any-gem](https://github.com/zdharma-continuum/zsh-package-any-gem) and
+    [any-node](https://github.com/zdharma-continuum/zsh-package-any-node). They allow to install any
     Gem(s) or Node module(s) locally in a newly created plugin directory. For example:
 
     ```zsh
@@ -62,13 +177,13 @@ All notable changes to this project will be documented in this file.
     ```
 
     The binaries will be exposed without altering the PATH via shims
-    ([Bin-Gem-Node](https://github.com/zinit-zsh/z-a-bin-gem-node) annex is needed).
+    ([Bin-Gem-Node](https://github.com/zinit-zsh/zinit-annex-bin-gem-node) annex is needed).
     Shims are correctly removed when deleting a plugin with `zinit delete …`.
 
 * 11-12-2019
   - Zinit now supports installing special-Zsh NPM packages! Bye-bye the long and
     complex ice-lists! Check out the
-    [Wiki](http://zdharma.org/zinit/wiki/NPM-Packages/) for an introductory document
+    [Wiki](https://zdharma-continuum.github.io/zinit/wiki/NPM-Packages/) for an introductory document
     on the feature.
 
 * 25-11-2019
@@ -96,10 +211,10 @@ All notable changes to this project will be documented in this file.
     ```
 
     i.e.: precede the plugin name with `@`. Note: `sbin''` is an ice added by the
-    [z-a-bin-gem-node](https://github.com/zinit/z-a-bin-gem-node) annex, it provides
+    [zinit-annex-bin-gem-node](https://github.com/zinit/zinit-annex-bin-gem-node) annex, it provides
     the command to the command line without altering `$PATH`.
 
-    See the [Zinit Wiki](http://zdharma.org/zinit/wiki/For-Syntax/) for more
+    See the [Zinit Wiki](https://zdharma-continuum.github.io/zinit/wiki/For-Syntax/) for more
     information on the for-syntax.
 
 * 06-11-2019
@@ -129,7 +244,7 @@ All notable changes to this project will be documented in this file.
     ```
 
     To load in light mode, use a new `light-mode` ice. More examples and information
-    can be found on the [Zinit Wiki](http://zdharma.org/zinit/wiki/For-Syntax/).
+    can be found on the [Zinit Wiki](https://zdharma-continuum.github.io/zinit/wiki/For-Syntax/).
 
 * 03-11-2019
   - A new value for the `as''` ice – `null`. Specifying `as"null"` is like specifying
@@ -214,20 +329,20 @@ All notable changes to this project will be documented in this file.
     conflicts when doing `pull`, and the changes can be then again introduced by the
     `atpull''` ice..
   - Three new Zplugin annexes (i.e.
-    [extensions](http://zdharma.org/zplugin/wiki/Annexes/)):
+    [extensions](https://zdharma-continuum.github.io/zplugin/wiki/Annexes/)):
 
-      - [z-a-man](https://github.com/zplugin/z-a-man)
+      - [zinit-annex-man](https://github.com/zplugin/zinit-annex-man)
 
         Generates man pages and code-documentation man pages from plugin's README.md
         and source files (the code documentation is obtained from
         [Zshelldoc](https://github.com/zdharma/zshelldoc)).
 
-      - [z-a-test](https://github.com/zplugin/z-a-test)
+      - [zinit-annex-test](https://github.com/zplugin/zinit-annex-test)
 
         Runs tests (if detected `test' target in a `Makefile` or any `*.zunit` files)
         on plugin installation and non-empty update.
 
-      - [z-a-patch-dl](https://github.com/zplugin/z-a-patch-dl)
+      - [zinit-annex-patch-dl](https://github.com/zplugin/zinit-annex-patch-dl)
 
         Allows easy download and applying of patches, to e.g. aid building a binary
         program equipped in the plugin.
@@ -342,7 +457,7 @@ All notable changes to this project will be documented in this file.
 
     In other words, instead of `wait'1'` you can enter `wait'1a'`,
     `wait'1b'` and `wait'1c'` – to this way **impose order** on the loadings
-    **regardless of the order of `zplugin` commands**. 
+    **regardless of the order of `zplugin` commands**.
 * 26-05-2019
   - Turbo-Mode now divides the scheduled events (i.e. loadings of plugins or snippets)
     into packs of 5. In other words, after loading each series of 5 plugins or snippets
@@ -362,7 +477,7 @@ All notable changes to this project will be documented in this file.
 * 12-10-2018
   - New `id-as''` ice-mod. You can nickname a plugin or snippet, to e.g. load it twice, with different `pick''`
     ice-mod, or from Github binary releases and regular Github repository at the same time. More information
-    in [blog post](http://zdharma.org/2018-10-12/Nickname-a-plugin-or-snippet).
+    in [blog post](https://zdharma-continuum.github.io/2018-10-12/Nickname-a-plugin-or-snippet).
 
 * 30-08-2018
   - New `as''` ice-mod value: `completion`. Can be used to install completion-only "plugins", even single

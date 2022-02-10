@@ -1,130 +1,80 @@
 # -*- mode: sh; sh-indentation: 4; indent-tabs-mode: nil; sh-basic-offset: 4; -*-
 # Copyright (c) 2016-2020 Sebastian Gniazdowski and contributors.
 
-builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || { builtin print -P "${ZINIT[col-error]}ERROR:%f%b Couldn't find ${ZINIT[col-obj]}zinit-side.zsh%f%b."; return 1; }
+builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || {
+    builtin print -P "${ZINIT[col-error]}ERROR:%f%b Couldn't find ${ZINIT[col-obj]}zinit-side.zsh%f%b."
+    return 1
+}
 
-# FUNCTION: .zinit-parse-json [[[
-# Retrievies the ice-list from given profile from
-# the JSON of the package.json.
-.zinit-parse-json() {
-    emulate -LR zsh
-    setopt extendedglob warncreateglobal typesetsilent
 
-    local -A ___pos_to_level ___level_to_pos ___pair_map \
-        ___final_pairs ___Strings ___Counts
-    local ___input=$1 ___workbuf=$1 ___key=$2 ___varname=$3 \
-        ___style ___quoting
-    integer ___nest=${4:-1} ___idx=0 ___pair_idx ___level=0 \
-        ___start ___end ___sidx=1 ___had_quoted_value=0
-    local -a match mbegin mend ___pair_order
+# FUNCTION: .zinit-jq-check [[[
+# Check if jq is available and outputs an error message with instructions if
+# that's not the case
+.zinit-jq-check() {
+    command -v jq >/dev/null && return 0
 
-    (( ${(P)+___varname} )) || typeset -gA "$___varname"
-
-    ___pair_map=( "{" "}" "[" "]" )
-    while [[ $___workbuf = (#b)[^"{}[]\\\"'":,]#((["{[]}\"'":,])|[\\](*))(*) ]]; do
-        if [[ -n ${match[3]} ]] {
-            ___idx+=${mbegin[1]}
-
-            [[ $___quoting = \' ]] && \
-                { ___workbuf=${match[3]}; } || \
-                { ___workbuf=${match[3]:1}; (( ++ ___idx )); }
-
-        } else {
-            ___idx+=${mbegin[1]}
-            if [[ -z $___quoting ]] {
-                if [[ ${match[1]} = ["({["] ]]; then
-                    ___Strings[$___level/${___Counts[$___level]}]+=" $'\0'--object--$'\0'"
-                    ___pos_to_level[$___idx]=$(( ++ ___level ))
-                    ___level_to_pos[$___level]=$___idx
-                    (( ___Counts[$___level] += 1 ))
-                    ___sidx=___idx+1
-                    ___had_quoted_value=0
-                elif [[ ${match[1]} = ["]})"] ]]; then
-                    (( !___had_quoted_value )) && \
-                        ___Strings[$___level/${___Counts[$___level]}]+=" ${(q)___input[___sidx,___idx-1]//((#s)[[:blank:]]##|([[:blank:]]##(#e)))}"
-                    ___had_quoted_value=1
-                    if (( ___level > 0 )); then
-                        ___pair_idx=${___level_to_pos[$___level]}
-                        ___pos_to_level[$___idx]=$(( ___level -- ))
-                        if [[ ${___pair_map[${___input[___pair_idx]}]} = ${___input[___idx]} ]] {
-                            ___final_pairs[$___idx]=$___pair_idx
-                            ___final_pairs[$___pair_idx]=$___idx
-                            ___pair_order+=( $___idx )
-                        }
-                    else
-                        ___pos_to_level[$___idx]=-1
-                    fi
-                fi
-            }
-
-            [[ ${match[1]} = \" && $___quoting != \' ]] && \
-                if [[ $___quoting = '"' ]]; then
-                    ___Strings[$___level/${___Counts[$___level]}]+=" ${(q)___input[___sidx,___idx-1]}"
-                    ___quoting=""
-                else
-                    ___had_quoted_value=1
-                    ___sidx=___idx+1
-                    ___quoting='"'
-                fi
-
-            [[ ${match[1]} = , && -z $___quoting ]] && \
-                {
-                    (( !___had_quoted_value )) && \
-                        ___Strings[$___level/${___Counts[$___level]}]+=" ${(q)___input[___sidx,___idx-1]//((#s)[[:blank:]]##|([[:blank:]]##(#e)))}"
-                    ___sidx=___idx+1
-                    ___had_quoted_value=0
-                }
-
-            [[ ${match[1]} = : && -z $___quoting ]] && \
-                {
-                    ___had_quoted_value=0
-                    ___sidx=___idx+1
-                }
-
-            [[ ${match[1]} = \' && $___quoting != \" ]] && \
-                if [[ $___quoting = "'" ]]; then
-                    ___Strings[$___level/${___Counts[$___level]}]+=" ${(q)___input[___sidx,___idx-1]}"
-                    ___quoting=""
-                else
-                    ___had_quoted_value=1
-                    ___sidx=___idx+1
-                    ___quoting="'"
-                fi
-
-            ___workbuf=${match[4]}
-        }
-    done
-
-    local ___text ___found
-    if (( ___nest != 2 )) {
-        integer ___pair_a ___pair_b
-        for ___pair_a ( "${___pair_order[@]}" ) {
-            ___pair_b="${___final_pairs[$___pair_a]}"
-            ___text="${___input[___pair_b,___pair_a]}"
-            if [[ $___text = [[:space:]]#\{[[:space:]]#[\"\']${___key}[\"\']* ]]; then
-                ___found="$___text"
-            fi
-        }
-    }
-
-    if [[ -n $___found && $___nest -lt 2 ]] {
-        .zinit-parse-json "$___found" "$___key" "$___varname" 2
-    }
-
-    if (( ___nest == 2 )) {
-        : ${(PAA)___varname::="${(kv)___Strings[@]}"}
-    }
+    +zinit-message "{error}❌ ERROR: jq binary not found" \
+        "{nl}{u-warn}Please install jq:{rst}" \
+        "https://github.com/stedolan/jq" \
+        "{nl}{u-warn}To do so with zinit, please refer to:{rst}" \
+        "https://github.com/zdharma-continuum/zinit/wiki/%F0%9F%A7%8A-Recommended-ices#jq"
+    return 1
 }
 # ]]]
+
+# FUNCTION: .zinit-json-get-value [[[
+# Wrapper around jq that return the value of a property
+# $1: JSON structure
+# $2: jq path
+.zinit-json-get-value() {
+    .zinit-jq-check || return 1
+
+    local jsonstr=$1 jqpath=$2
+    jq -er ".${jqpath}" <<< "$jsonstr"
+}
+# ]]]
+
+# FUNCTION: .zinit-json-to-array [[[
+# Wrapper around jq that sets key/values of an associative array, replicating
+# the structure of a given JSON object
+# $1: JSON structure
+# $2: jq path
+# $3: name of the associative array to store the key/value pairs in
+.zinit-json-to-array() {
+    emulate -LR zsh
+    setopt localoptions noglob
+
+    .zinit-jq-check || return 1
+
+    local jsonstr=$1 jqpath=$2 varname=$3
+
+    (( ${(P)+varname} )) || typeset -gA "$varname"
+
+    # NOTE We're not using @sh for the keys on purpose. Associative
+    # array keys are used verbatim by zsh:
+    # typeset -A a; a[key]=one; a['key']=two; echo ${(k)a}
+    # 'key' key
+    local evalstr=$(command jq -er --arg varname $varname \
+        '.'${jqpath}' | to_entries |
+        map($varname + "[\(.key)]=\(.value | @sh);")[]' \
+        <<< "$jsonstr")
+    eval "$evalstr"
+}
+# ]]]
+
 # FUNCTION: .zinit-get-package [[[
 .zinit-get-package() {
     emulate -LR zsh
     setopt extendedglob warncreateglobal typesetsilent noshortloops rcquotes
 
     local user=$1 pkg=$2 plugin=$2 id_as=$3 dir=$4 profile=$5 \
-        local_path=${ZINIT[PLUGINS_DIR]}/${3//\//---} pkgjson \
-        tmpfile=${$(mktemp):-${TMPDIR:-/tmp}/zsh.xYzAbc123} \
-        URL=https://raw.githubusercontent.com/Zsh-Packages/$2/master/package.json
+        ver=${ICE[ver]} local_path=${ZINIT[PLUGINS_DIR]}/${3//\//---} \
+        pkgjson tmpfile=${$(mktemp):-${TMPDIR:-/tmp}/zsh.xYzAbc123}
+    local URL=https://raw.githubusercontent.com/${ZINIT[PACKAGES_REPO]}/${ver:-${ZINIT[PACKAGES_BRANCH]}}/${pkg}/package.json
+
+    # Consume, ie delete the ver ice to avoid being consumed again at
+    # git-clone time
+    [[ -n "$ver" ]] && unset 'ICE[ver]'
 
     local pro_sep="{rst}, {profile}" epro_sep="{error}, {profile}" \
         tool_sep="{rst}, {cmd}" \
@@ -133,87 +83,109 @@ builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || { builtin print -P "${ZINIT
     trap "rmdir ${(qqq)local_path} 2>/dev/null; return 1" INT TERM QUIT HUP
     trap "rmdir ${(qqq)local_path} 2>/dev/null" EXIT
 
-    if [[ $profile != ./* ]] {
-        if { ! .zinit-download-file-stdout $URL 0 1 2>/dev/null > $tmpfile } {
-            rm -f $tmpfile; .zinit-download-file-stdout $URL 1 1 2>/dev/null >1 $tmpfile
-        }
-    } else {
+    # Check if we were provided with a local path to a package.json
+    # as in:
+    # zinit pack'/zp/firefox-dev/package.json:default' for firefox-dev
+    if [[ $profile == ./* || $profile == /* ]] {
+        local localpkg=1
+        # FIXME below only works if there are no ':' in the path
         tmpfile=${profile%:*}
         profile=${${${(M)profile:#*:*}:+${profile#*:}}:-default}
+    } elif { ! .zinit-download-file-stdout $URL 0 1 2>/dev/null > $tmpfile } {
+        # retry
+        command rm -f $tmpfile
+        .zinit-download-file-stdout $URL 1 1 2>/dev/null >1 $tmpfile
     }
 
-    pkgjson="$(<$tmpfile)"
+    # load json from file
+    [[ -e $tmpfile ]] && pkgjson="$(<$tmpfile)"
 
-    if [[ -z $pkgjson ]]; then
-        +zinit-message "{u-warn}Error{b-warn}:{error} the package {apo}\`{pid}$id_as{apo}\`"\
-            "{error}couldn't be found.{rst}"
+    # Set package name (used later in the output)
+    local pkgname=${${id_as##_unknown}:-${pkg:-${plugin}}}
+    [[ -n "$localpkg" ]] && pkgname="{pid}$pkgname{rst} {note}[$tmpfile]{rst}"
+
+    if [[ -z $pkgjson ]] {
+        +zinit-message "{error}❌ Error: the package {hi}${pkgname}" \
+                       "{error}couldn't be found.{rst}"
         return 1
-    fi
+    }
 
-    local -A Strings
-    .zinit-parse-json "$pkgjson" "plugin-info" Strings
-
-    local -A jsondata1
-    jsondata1=( ${(@Q)${(@z)Strings[2/1]}} )
-    local user=${jsondata1[user]} plugin=${jsondata1[plugin]} \
-        url=${jsondata1[url]} message=${jsondata1[message]} \
-        required=${jsondata1[required]:-${jsondata1[requires]}}
+    # root field, where the relevant data is stored
+    local json_root='["zsh-data"]'
+    local json_ices="${json_root}[\"zinit-ices\"]"
+    local json_meta="${json_root}[\"plugin-info\"]"
 
     local -a profiles
-    local key value
-    integer pos
-    profiles=( ${(@Q)${(@z)Strings[2/2]}} )
-    profiles=( ${profiles[@]:#$'\0'--object--$'\0'} )
-    pos=${${(@Q)${(@z)Strings[2/2]}}[(I)$profile]}
-    if (( pos )) {
-        for key value ( "${(@Q)${(@z)Strings[3/$(( (pos + 1) / 2 ))]}}" ) {
-            (( ${+ICE[$key]} )) && [[ ${ICE[$key]} != +* ]] && continue
-            ICE[$key]=$value${ICE[$key]#+}
-        }
-        ICE=( "${(kv)ICE[@]//\\\"/\"}" )
-        [[ ${ICE[as]} = program ]] && ICE[as]="command"
-        [[ -n ${ICE[on-update-of]} ]] && ICE[subscribe]="${ICE[subscribe]:-${ICE[on-update-of]}}"
-        [[ -n ${ICE[pick]} ]] && ICE[pick]="${ICE[pick]//\$ZPFX/${ZPFX%/}}"
-        if [[ -n ${ICE[id-as]} ]] {
-            @zinit-substitute 'ICE[id-as]'
-            local -A map
-            map=( "\"" "\\\"" "\\" "\\" )
-            eval "ICE[id-as]=\"${ICE[id-as]//(#m)[\"\\]/${map[$MATCH]}}\""
-        }
-    } else {
-        # Założenie: profil domyślny jest pierwszy w tablicy (patrz: inny kolor).
+    profiles=("${(@f)$(.zinit-json-get-value "$pkgjson" "${json_ices} | keys[]")}") \
+        || return 1
+
+    # Check if user requested an unknown profile
+    if ! (( ${profiles[(I)${profile}]} )) {
+        # Assumption: the default profile is the first in the table (-> different color).
         +zinit-message "{u-warn}Error{b-warn}:{error} the profile {apo}\`{hi}$profile{apo}\`" \
             "{error}couldn't be found, aborting. Available profiles are:" \
             "{lhi}${(pj:$epro_sep:)profiles[@]}{error}.{rst}"
         return 1
     }
+    local json_profile="${json_ices}[\"${profile}\"]"
 
+    local -A metadata
+    .zinit-json-to-array "$pkgjson" "$json_meta" metadata
+    if [[ "$?" -ne 0 || -z "$metadata" ]] {
+        +zinit-message '{error}❌ ERROR: Failed to retrieve metadata from package.json'
+        return 1
+    }
 
-    +zinit-message "{info3}Package{ehi}:{rst} {pid}$pkg{rst}. Selected" \
+    local user=${metadata[user]} plugin=${metadata[plugin]} \
+        message=${metadata[message]} url=${metadata[url]}
+
+    .zinit-json-to-array "$pkgjson" "$json_profile" ICE
+    local -a requirements
+
+    # FIXME requires shouldn't be stored under zinit-ices...
+    if [[ -n "$ICE[requires]" ]] {
+        # split requirements on ';'
+        requirements=(${(s.;.)${ICE[requires]}})
+        unset 'ICE[requires]'
+    }
+
+    [[ ${ICE[as]} == program ]] && ICE[as]="command"
+    [[ -n ${ICE[on-update-of]} ]] && ICE[subscribe]="${ICE[subscribe]:-${ICE[on-update-of]}}"
+    [[ -n ${ICE[pick]} ]] && ICE[pick]="${ICE[pick]//\$ZPFX/${ZPFX%/}}"
+
+    # FIXME Do we even need that? If yes, we may want to do that in
+    # .zinit-json-to-array
+    if [[ -n ${ICE[id-as]} ]] {
+        @zinit-substitute 'ICE[id-as]'
+        local -A map
+        map=( "\"" "\\\"" "\\" "\\" )
+        eval "ICE[id-as]=\"${ICE[id-as]//(#m)[\"\\]/${map[$MATCH]}}\""
+    }
+
+    +zinit-message "{info3}Package{ehi}:{rst} ${pkgname}. Selected" \
         "profile{ehi}:{rst} {hi}$profile{rst}. Available" \
         "profiles:${${${(M)profile:#default}:+$lhi_hl}:-$profile_hl}" \
         "${(pj:$pro_sep:)profiles[@]}{rst}."
+
     if [[ $profile != *bgn* && -n ${(M)profiles[@]:#*bgn*} ]] {
-         +zinit-message "{note}Note:{rst} The {apo}\`{profile}bgn{glob}*{apo}\`{rst}" \
+        +zinit-message "{note}Note:{rst} The {apo}\`{profile}bgn{glob}*{apo}\`{rst}" \
             "profiles (if any are available) are the recommended ones (the reason" \
             "is that they expose the binaries provided by the package without" \
             "altering (i.e.: {slight}cluttering{rst}{…}) the {var}\$PATH{rst}" \
             "environment variable)."
     }
 
-    ICE[required]=${ICE[required]:-$ICE[requires]}
-    local -a req
-    req=( ${(s.;.)${:-${required:+$required\;}${ICE[required]}}} )
-    for required ( $req ) {
+    local required
+    for required ( $requirements ) {
         if [[ $required == (bgn|dl|monitor) ]]; then
-            if [[ ( $required == bgn && -z ${(k)ZINIT_EXTS[(r)<-> z-annex-data: z-a-bin-gem-node *]} ) || \
-                ( $required == dl && -z ${(k)ZINIT_EXTS[(r)<-> z-annex-data: z-a-patch-dl *]} ) || \
-                ( $required == monitor && -z ${(k)ZINIT_EXTS[(r)<-> z-annex-data: z-a-readurl *]} )
+            if [[ ( $required == bgn && -z ${(k)ZINIT_EXTS[(r)<-> z-annex-data: zinit-annex-bin-gem-node *]} ) || \
+                ( $required == dl && -z ${(k)ZINIT_EXTS[(r)<-> z-annex-data: zinit-annex-patch-dl *]} ) || \
+                ( $required == monitor && -z ${(k)ZINIT_EXTS[(r)<-> z-annex-data: zinit-annex-readurl *]} )
             ]]; then
                 local -A namemap
-                namemap=( bgn Bin-Gem-Node dl Patch-Dl monitor readurl )
+                namemap=( bgn bin-gem-node dl patch-dl monitor readurl )
                 +zinit-message -n "{u-warn}ERROR{b-warn}: {error}the "
-                if [[ -z ${(MS)ICE[required]##(\;|(#s))$required(\;|(#e))} ]]; then
+                if [[ -z ${(MS)ICE[requires]##(\;|(#s))$required(\;|(#e))} ]]; then
                     +zinit-message -n "{error}requested profile {apo}\`{hi}$profile{apo}\`{error} "
                 else
                     +zinit-message -n "{error}package {pid}$pkg{error} "
@@ -221,7 +193,7 @@ builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || { builtin print -P "${ZINIT
                 +zinit-message '{error}requires the {apo}`{annex}'${namemap[$required]}'{apo}`' \
                     "{error}annex, which is currently not installed." \
                     "{nl}{nl}If you'd like to install it, you can visit its homepage:" \
-                    "{nl}– {url}https://github.com/zinit-zsh/z-a-${(L)namemap[$required]}{rst}" \
+                    "{nl}– {url}https://github.com/zdharma-continuum/zinit-annex-${(L)namemap[$required]}{rst}" \
                     "{nl}for instructions."
                 (( ${#profiles[@]:#$profile} > 0 )) && \
                     +zinit-message "{nl}Other available profiles are:" \
@@ -232,7 +204,7 @@ builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || { builtin print -P "${ZINIT
         else
             if ! command -v $required &>/dev/null; then
                 +zinit-message -n "{u-warn}ERROR{b-warn}: {error}the "
-                if [[ -n ${(MS)ICE[required]##(\;|(#s))$required(\;|(#e))} ]]; then
+                if [[ -n ${(MS)ICE[requires]##(\;|(#s))$required(\;|(#e))} ]]; then
                     +zinit-message -n "{error}requested profile {apo}\`{hi}$profile{apo}\`{error} "
                 else
                     +zinit-message -n "{error}package {pid}$pkg{error} "
@@ -249,20 +221,19 @@ builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || { builtin print -P "${ZINIT
         fi
     }
 
-    if [[ -n ${ICE[dl]} && -z ${(k)ZINIT_EXTS[(r)<-> z-annex-data: z-a-patch-dl *]} ]] {
+    if [[ -n ${ICE[dl]} && -z ${(k)ZINIT_EXTS[(r)<-> z-annex-data: zinit-annex-patch-dl *]} ]] {
         +zinit-message "{nl}{u-warn}WARNING{b-warn}:{rst} the profile uses" \
-            "{ice}dl''{rst} ice however there's currently no {annex}z-a-patch-dl{rst}" \
+            "{ice}dl''{rst} ice however there's currently no {annex}zinit-annex-patch-dl{rst}" \
             "annex loaded, which provides it."
         +zinit-message "The ice will be inactive, i.e.: no additional" \
             "files will become downloaded (the ice downloads the given URLs)." \
             "The package should still work, as it doesn't indicate to" \
             "{u}{slight}require{rst} the annex."
         +zinit-message "{nl}You can download the" \
-            "annex from its homepage at {url}https://github.com/zinit-zsh/z-a-patch-dl{rst}."
+            "annex from its homepage at {url}https://github.com/zdharma-continuum/zinit-annex-patch-dl{rst}."
     }
 
-    [[ -n ${jsondata1[message]} ]] && \
-        +zinit-message "{info}${jsondata1[message]}{rst}"
+    [[ -n ${message} ]] && +zinit-message "{info}${message}{rst}"
 
     if (( ${+ICE[is-snippet]} )) {
         reply=( "" "$url" )
@@ -270,13 +241,13 @@ builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || { builtin print -P "${ZINIT
         return 0
     }
 
+    # FIXME This part below is a bit odd since it essentially replicates what
+    # the dl ice supposed to be doing.
+    # TL;DR below downloads whatever url is stored in the "_resolved" field
     if (( !${+ICE[git]} && !${+ICE[from]} )) {
         (
-            .zinit-parse-json "$pkgjson" "_from" Strings
             local -A jsondata
-            jsondata=( "${(@Q)${(@z)Strings[1/1]}}" )
-
-            local URL=${jsondata[_resolved]}
+            local URL=$(.zinit-json-get-value "$pkgjson" "_resolved")
             local fname="${${URL%%\?*}:t}"
 
             command mkdir -p $dir || {
@@ -455,7 +426,7 @@ builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || { builtin print -P "${ZINIT
                             unfunction :zinit-git-clone
                             return $retval
                     }
-                    :zinit-git-clone |& { command ${ZINIT[BIN_DIR]}/git-process-output.zsh || cat; }
+                    :zinit-git-clone |& { command ${ZINIT[BIN_DIR]}/share/git-process-output.zsh || cat; }
                     if (( pipestatus[1] == 141 )) {
                         :zinit-git-clone
                         integer retval=$?
@@ -479,6 +450,7 @@ builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || { builtin print -P "${ZINIT
         }
 
         if [[ $update != -u ]] {
+            hook_rc=0
             # Store ices at clone of a plugin
             .zinit-store-ices "$local_path/._zinit" ICE "" "" "" ""
             reply=(
@@ -488,7 +460,14 @@ builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || { builtin print -P "${ZINIT
             )
             for key in "${reply[@]}"; do
                 arr=( "${(Q)${(z@)ZINIT_EXTS[$key]:-$ZINIT_EXTS2[$key]}[@]}" )
+                # Functions calls
                 "${arr[5]}" plugin "$user" "$plugin" "$id_as" "$local_path" "${${key##(zinit|z-annex) hook:}%% <->}" load
+                hook_rc=$?
+                [[ "$hook_rc" -ne 0 ]] && {
+                    # note: this will effectively return the last != 0 rc
+                    retval="$hook_rc"
+                    builtin print -Pr -- "${ZINIT[col-warn]}Warning:%f%b ${ZINIT[col-obj]}${arr[5]}${ZINIT[col-warn]} hook returned with ${ZINIT[col-obj]}${hook_rc}${ZINIT[col-rst]}"
+                }
             done
 
             # Run annexes' atclone hooks (the after atclone-ice ones)
@@ -500,10 +479,15 @@ builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || { builtin print -P "${ZINIT
             for key in "${reply[@]}"; do
                 arr=( "${(Q)${(z@)ZINIT_EXTS[$key]:-$ZINIT_EXTS2[$key]}[@]}" )
                 "${arr[5]}" plugin "$user" "$plugin" "$id_as" "$local_path" "${${key##(zinit|z-annex) hook:}%% <->}"
+                hook_rc=$?
+                [[ "$hook_rc" -ne 0 ]] && {
+                    retval="$hook_rc"
+                    builtin print -Pr -- "${ZINIT[col-warn]}Warning:%f%b ${ZINIT[col-obj]}${arr[5]}${ZINIT[col-warn]} hook returned with ${ZINIT[col-obj]}${hook_rc}${ZINIT[col-rst]}"
+                }
             done
         }
 
-        ((1))
+        return "$retval"
     ) || return $?
 
     typeset -ga INSTALLED_EXECS
@@ -599,12 +583,12 @@ builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || { builtin print -P "${ZINIT
 
     if (( quiet == 1 && (${#INSTALLED_COMPS} || ${#SKIPPED_COMPS}) )) {
         +zinit-message "{msg}Installed {num}${#INSTALLED_COMPS}" \
-            "{msg}completions. They are stored in{var}" \
+            "{msg}completions. They are stored in the{var}" \
             "\$INSTALLED_COMPS{msg} array."
         if (( ${#SKIPPED_COMPS} )) {
             +zinit-message "{msg}Skipped installing" \
                 "{num}${#SKIPPED_COMPS}{msg} completions." \
-                "They are stored in {var}\$SKIPPED_COMPS{msg} array."
+                "They are stored in the {var}\$SKIPPED_COMPS{msg} array."
         }
     }
 
@@ -665,6 +649,13 @@ builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || { builtin print -P "${ZINIT
 
     emulate -LR zsh
     setopt localtraps extendedglob
+
+    # Return file directly for file:// urls, wget doesn't support this schema
+    if [[ "$url" =~ ^file:// ]] {
+        local filepath=${url##file://}
+        <"$filepath"
+        return "$?"
+    }
 
     if (( restart )) {
         (( ${path[(I)/usr/local/bin]} )) || \
@@ -929,7 +920,7 @@ builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || { builtin print -P "${ZINIT
     trap "command rmdir ${(qqq)local_dir}/${(qqq)dirname} 2>/dev/null; return 1;" INT TERM QUIT HUP
 
     local -a list arr
-    integer retval
+    integer retval=0 hook_rc=0
     local teleid_clean=${ICE[teleid]%%\?*}
     [[ $teleid_clean == *://* ]] && \
         local sname=${(M)teleid_clean##*://[^/]##(/[^/]##)(#c0,4)} || \
@@ -1018,6 +1009,11 @@ builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || { builtin print -P "${ZINIT
                         for key in "${reply[@]}"; do
                             arr=( "${(Q)${(z@)ZINIT_EXTS[$key]:-$ZINIT_EXTS2[$key]}[@]}" )
                             "${arr[5]}" snippet "$save_url" "$id_as" "$local_dir/$dirname" "${${key##(zinit|z-annex) hook:}%% <->}" update:svn
+                            hook_rc=$?
+                            [[ "$hook_rc" -ne 0 ]] && {
+                                retval="$hook_rc"
+                                builtin print -Pr -- "${ZINIT[col-warn]}Warning:%f%b ${ZINIT[col-obj]}${arr[5]}${ZINIT[col-warn]} hook returned with ${ZINIT[col-obj]}${hook_rc}${ZINIT[col-rst]}"
+                            }
                         done
 
                         if (( ZINIT[annex-multi-flag:pull-active] == 2 )) {
@@ -1107,6 +1103,11 @@ builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || { builtin print -P "${ZINIT
                         for key in "${reply[@]}"; do
                             arr=( "${(Q)${(z@)ZINIT_EXTS[$key]:-$ZINIT_EXTS2[$key]}[@]}" )
                             "${arr[5]}" snippet "$save_url" "$id_as" "$local_dir/$dirname" "${${key##(zinit|z-annex) hook:}%% <->}" update:url
+                            hook_rc="$?"
+                            [[ "$hook_rc" -ne 0 ]] && {
+                                retval="$hook_rc"
+                                builtin print -Pr -- "${ZINIT[col-warn]}Warning:%f%b ${ZINIT[col-obj]}${arr[5]}${ZINIT[col-warn]} hook returned with ${ZINIT[col-obj]}${hook_rc}${ZINIT[col-rst]}"
+                            }
                         done
                     }
 
@@ -1162,6 +1163,11 @@ builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || { builtin print -P "${ZINIT
                 for key in "${reply[@]}"; do
                     arr=( "${(Q)${(z@)ZINIT_EXTS[$key]:-$ZINIT_EXTS2[$key]}[@]}" )
                     "${arr[5]}" snippet "$save_url" "$id_as" "$local_dir/$dirname" "${${key##(zinit|z-annex) hook:}%% <->}" update:file
+                    hook_rc="$?"
+                    [[ "$hook_rc" -ne 0 ]] && {
+                        retval="$hook_rc"
+                        builtin print -Pr -- "${ZINIT[col-warn]}Warning:%f%b ${ZINIT[col-obj]}${arr[5]}${ZINIT[col-warn]} hook returned with ${ZINIT[col-obj]}${hook_rc}${ZINIT[col-rst]}"
+                    }
                 done
             }
 
@@ -1212,9 +1218,14 @@ builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || { builtin print -P "${ZINIT
             for key in "${reply[@]}"; do
                 arr=( "${(Q)${(z@)ZINIT_EXTS[$key]:-$ZINIT_EXTS2[$key]}[@]}" )
                 "${arr[5]}" snippet "$save_url" "$id_as" "$local_dir/$dirname" "${${key##(zinit|z-annex) hook:}%% <->}" update:0
+                hook_rc="$?"
+                [[ "$hook_rc" -ne 0 ]] && {
+                    retval="$hook_rc"
+                    builtin print -Pr -- "${ZINIT[col-warn]}Warning:%f%b ${ZINIT[col-obj]}${arr[5]}${ZINIT[col-warn]} hook returned with ${ZINIT[col-obj]}${hook_rc}${ZINIT[col-rst]}"
+                }
             done
 
-            return 0;
+            return $retval;
         }
 
         if [[ $update = -u ]] {
@@ -1228,6 +1239,11 @@ builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || { builtin print -P "${ZINIT
             for key in "${reply[@]}"; do
                 arr=( "${(Q)${(z@)ZINIT_EXTS[$key]:-$ZINIT_EXTS2[$key]}[@]}" )
                 "${arr[5]}" snippet "$save_url" "$id_as" "$local_dir/$dirname" "${${key##(zinit|z-annex) hook:}%% <->}" update
+                hook_rc=$?
+                [[ "$hook_rc" -ne 0 ]] && {
+                    retval="$hook_rc"
+                    builtin print -Pr -- "${ZINIT[col-warn]}Warning:%f%b ${ZINIT[col-obj]}${arr[5]}${ZINIT[col-warn]} hook returned with ${ZINIT[col-obj]}${hook_rc}${ZINIT[col-rst]}"
+                }
             done
         } else {
             # Run annexes' atclone hooks (the before atclone-ice ones)
@@ -1265,6 +1281,11 @@ builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || { builtin print -P "${ZINIT
                 for key in "${reply[@]}"; do
                     arr=( "${(Q)${(z@)ZINIT_EXTS[$key]:-$ZINIT_EXTS2[$key]}[@]}" )
                     "${arr[5]}" snippet "$save_url" "$id_as" "$local_dir/$dirname" "${${key##(zinit|z-annex) hook:}%% <->}" update
+                    hook_rc=$?
+                    [[ "$hook_rc" -ne 0 ]] && {
+                        retval="$hook_rc"
+                        builtin print -Pr -- "${ZINIT[col-warn]}Warning:%f%b ${ZINIT[col-obj]}${arr[5]}${ZINIT[col-warn]} hook returned with ${ZINIT[col-obj]}${hook_rc}${ZINIT[col-rst]}"
+                    }
                 done
             }
 
@@ -1278,9 +1299,13 @@ builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || { builtin print -P "${ZINIT
             for key in "${reply[@]}"; do
                 arr=( "${(Q)${(z@)ZINIT_EXTS[$key]:-$ZINIT_EXTS2[$key]}[@]}" )
                 "${arr[5]}" snippet "$save_url" "$id_as" "$local_dir/$dirname" "${${key##(zinit|z-annex) hook:}%% <->}" update:$ZINIT[annex-multi-flag:pull-active]
+                hook_rc=$?
+                [[ "$hook_rc" -ne 0 ]] && {
+                    retval="$hook_rc"
+                    builtin print -Pr -- "${ZINIT[col-warn]}Warning:%f%b ${ZINIT[col-obj]}${arr[5]}${ZINIT[col-warn]} hook returned with ${ZINIT[col-obj]}${hook_rc}${ZINIT[col-rst]}"
+                }
             done
         }
-        ((1))
     ) || return $?
 
     typeset -ga INSTALLED_EXECS
@@ -1321,10 +1346,10 @@ builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || { builtin print -P "${ZINIT
     local url=$1
     integer correct=0
     [[ -o ksharrays ]] && correct=1
-    opts=( -u ) # for z-a-readurl
+    opts=( -u ) # for zinit-annex-readurl
 
     # Create a local copy of OPTS, basically
-    # for z-a-readurl annex
+    # for zinit-annex-readurl annex
     local -A ice_opts
     ice_opts=( "${(kv)OPTS[@]}" )
     local -A OPTS
@@ -1354,7 +1379,7 @@ builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || { builtin print -P "${ZINIT
     } elif [[ -n ${ZINIT_SICE[$id_as]} ]] {
         +zinit-message "{error}WARNING:{msg2} Inconsistency #3" \
             "occurred, please report the string: \`{obj}${ZINIT_SICE[$id_as]}{msg2}' to the" \
-            "GitHub issues page: {obj}https://github.com/zdharma/zinit/issues/{msg2}.{rst}"
+            "GitHub issues page: {obj}https://github.com/zdharma-continuum/zinit/issues/{msg2}.{rst}"
     }
     id_as=${ICE[id-as]:-$id_as}
 
@@ -1431,7 +1456,7 @@ builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || { builtin print -P "${ZINIT
         aarch64 "aarch64"
         aarch64-2 "arm"
         linux   "(linux|linux-gnu)"
-        darwin  "(darwin|mac|osx|os-x)"
+        darwin  "(darwin|mac|macos|osx|os-x)"
         cygwin  "(windows|cygwin|[-_]win|win64|win32)"
         windows "(windows|cygwin|[-_]win|win64|win32)"
         msys "(windows|msys|cygwin|[-_]win|win64|win32)"
@@ -1546,7 +1571,7 @@ ziextract() {
         # First try known file extensions
         local -a files
         integer ret_val
-        files=( (#i)**/*.(zip|rar|7z|tgz|tbz2|tar.gz|tar.bz2|tar.7z|txz|tar.xz|gz|xz|tar|dmg|exe)~(*/*|.(_backup|git))/*(-.DN) )
+        files=( (#i)**/*.(zip|rar|7z|tgz|tbz|tbz2|tar.gz|tar.bz2|tar.7z|txz|tar.xz|gz|xz|tar|dmg|exe)~(*/*|.(_backup|git))/*(-.DN) )
         for file ( $files ) {
             ziextract "$file" $opt_move $opt_move2 $opt_norm $opt_nobkp ${${${#files}:#1}:+--nobkp}
             ret_val+=$?
@@ -1652,7 +1677,7 @@ ziextract() {
         ((#i)*.rar)
             →zinit-extract() { →zinit-check unrar "$file" || return 1; command unrar x "$file"; }
             ;;
-        ((#i)*.tar.bz2|(#i)*.tbz2)
+        ((#i)*.tar.bz2|(#i)*.tbz|(#i)*.tbz2)
             →zinit-extract() { →zinit-check bzip2 "$file" || return 1; command bzip2 -dc "$file" | command tar -xf -; }
             ;;
         ((#i)*.tar.gz|(#i)*.tgz)
@@ -1683,6 +1708,13 @@ ziextract() {
             }
             ;;
         ((#i)*.bz2|(#i)*.bzip2)
+            # Rename file if its extension does not match "bz2". bunzip2 refuses
+            # to operate on files that are not named correctly.
+            # See https://github.com/zdharma-continuum/zinit/issues/105
+            if [[ $file != (#i)*.bz2 ]] {
+                command mv $file $file.bz2
+                file=$file.bz2
+            }
             →zinit-extract() { →zinit-check bunzip2 "$file" || return 1
                 .zinit-get-mtime-into "$file" 'ZINIT[tmp]'
                 command bunzip2 "$file" |& command egrep -v '.out$'
@@ -1865,11 +1897,15 @@ zpextract() { ziextract "$@"; }
 # ]]]
 # FUNCTION: .zinit-at-eval [[[
 .zinit-at-eval() {
-    local atclone="$2" atpull="$1"
+    local atpull="$1" atclone="$2"
     integer retval
     @zinit-substitute atclone atpull
-    [[ $atpull = "%atclone" ]] && { eval "$atclone"; retval=$?; } || { eval "$atpull"; retval=$?; }
-    return $retval
+
+    local cmd="$atpull"
+    [[ $atpull == "%atclone" ]] && cmd="$atclone"
+
+    eval "$cmd"
+    return "$?"
 }
 # ]]]
 # FUNCTION: .zinit-get-cygwin-package [[[
@@ -2093,10 +2129,12 @@ zimv() {
     local make=${ICE[make]}
     @zinit-substitute make
 
+    (( ${+ICE[make]} )) || return 0
+    [[ $make = "!!"* ]] || return 0
+
     # Git-plugin make'' at download
-    [[ $make = "!!"* ]] && \
-        .zinit-countdown make && \
-            command make -C "$dir" ${(@s; ;)${make#\!\!}}
+    .zinit-countdown make && \
+        command make -C "$dir" ${(@s; ;)${make#\!\!}}
 }
 # ]]]
 # FUNCTION: ∞zinit-make-e-hook [[[
@@ -2108,10 +2146,12 @@ zimv() {
     local make=${ICE[make]}
     @zinit-substitute make
 
+    (( ${+ICE[make]} )) || return 0
+    [[ $make = ("!"[^\!]*|"!") ]] || return 0
+
     # Git-plugin make'' at download
-    [[ $make = ("!"[^\!]*|"!") ]] && \
-        .zinit-countdown make && \
-            command make -C "$dir" ${(@s; ;)${make#\!}}
+    .zinit-countdown make && \
+        command make -C "$dir" ${(@s; ;)${make#\!}}
 }
 # ]]]
 # FUNCTION: ∞zinit-make-hook [[[
@@ -2123,11 +2163,12 @@ zimv() {
     local make=${ICE[make]}
     @zinit-substitute make
 
+    (( ${+ICE[make]} )) || return 0
+    [[ $make != "!"* ]] || return 0
+
     # Git-plugin make'' at download
-    (( ${+ICE[make]} )) && \
-        [[ $make != "!"* ]] && \
-            .zinit-countdown make && \
-                command make -C "$dir" ${(@s; ;)make}
+    .zinit-countdown make &&
+        command make -C "$dir" ${(@s; ;)make}
 }
 # ]]]
 # FUNCTION: ∞zinit-atclone-hook [[[
@@ -2138,8 +2179,26 @@ zimv() {
 
     local atclone=${ICE[atclone]}
     @zinit-substitute atclone
+    (( ${+ICE[atclone]} )) || return 0
 
-    [[ -n $atclone ]] && .zinit-countdown atclone && { local ___oldcd=$PWD; (( ${+ICE[nocd]} == 0 )) && { () { setopt localoptions noautopushd; builtin cd -q "$dir"; } && eval "$atclone"; ((1)); } || eval "$atclone"; () { setopt localoptions noautopushd; builtin cd -q "$___oldcd"; }; }
+    local rc=0
+    [[ -n $atclone ]] && .zinit-countdown atclone && {
+        local ___oldcd=$PWD
+
+        (( ${+ICE[nocd]} == 0 )) && {
+            () {
+                setopt localoptions noautopushd
+                builtin cd -q "$dir"
+            }
+        }
+
+        eval "$atclone"
+        rc="$?"
+
+        () { setopt localoptions noautopushd; builtin cd -q "$___oldcd"; }
+    }
+
+    return "$rc"
 }
 # ]]]
 # FUNCTION: ∞zinit-extract-hook [[[
@@ -2151,12 +2210,14 @@ zimv() {
     local extract=${ICE[extract]}
     @zinit-substitute extract
 
-    (( ${+ICE[extract]} )) && .zinit-extract plugin "$extract" "$dir"
+    (( ${+ICE[extract]} )) || return 0
+
+    .zinit-extract plugin "$extract" "$dir"
 }
 # ]]]
 # FUNCTION: ∞zinit-mv-hook [[[
 ∞zinit-mv-hook() {
-    [[ -z $ICE[mv] ]] && return
+    [[ -z $ICE[mv] ]] && return 0
 
     [[ "$1" = plugin ]] && \
         local dir="${5#%}" hook="$6" subtype="$7" || \
@@ -2170,18 +2231,26 @@ zimv() {
 
     @zinit-substitute from to
 
+    local -a mv_args=("-f")
     local -a afr
-    ( () { setopt localoptions noautopushd; builtin cd -q "$dir"; } || return 1
-      afr=( ${~from}(DN) )
-      if (( ${#afr} )) {
-          if (( !OPTS[opt_-q,--quiet] )) {
-              command mv -vf "${afr[1]}" "$to"
-              command mv -vf "${afr[1]}".zwc "$to".zwc 2>/dev/null
-          } else {
-              command mv -f "${afr[1]}" "$to"
-              command mv -f "${afr[1]}".zwc "$to".zwc 2>/dev/null
-          }
-      }
+
+    (
+        () { setopt localoptions noautopushd; builtin cd -q "$dir"; } || return 1
+        afr=( ${~from}(DN) )
+
+        if (( ! ${#afr} )) {
+            +zinit-message "{warn}Warning: mv ice didn't match any file. [{error}$ICE[mv]{warn}]" \
+                           "{nl}{warn}Available files:{nl}{obj}$(ls -1)"
+            return 1
+        }
+        if (( !OPTS[opt_-q,--quiet] )) {
+            mv_args+=("-v")
+        }
+
+        command mv "${mv_args[@]}" "${afr[1]}" "$to"
+        local retval=$?
+        command mv "${mv_args[@]}" "${afr[1]}".zwc "$to".zwc 2>/dev/null
+        return $retval
     )
 }
 # ]]]
@@ -2222,19 +2291,20 @@ zimv() {
         local dir="${5#%}" hook="$6" subtype="$7" || \
         local dir="${4#%}" hook="$5" subtype="$6"
 
-    if [[ ( $hook = *\!at(clone|pull)* && ${+ICE[nocompile]} -eq 0 ) || \
-            ( $hook = at(clone|pull)* && $ICE[nocompile] = '!' )
-    ]] {
-        # Compile plugin
-        if [[ -z $ICE[(i)(\!|)(sh|bash|ksh|csh)] ]] {
-            () {
-                emulate -LR zsh
-                setopt extendedglob warncreateglobal
-                if [[ $tpe == snippet ]] {
-                    .zinit-compile-plugin "%$dir" ""
-                } else {
-                    .zinit-compile-plugin "$id_as" ""
-                }
+    if ! [[ ( $hook = *\!at(clone|pull)* && ${+ICE[nocompile]} -eq 0 ) || \
+            ( $hook = at(clone|pull)* && $ICE[nocompile] = '!' ) ]] {
+        return 0
+    }
+
+    # Compile plugin
+    if [[ -z $ICE[(i)(\!|)(sh|bash|ksh|csh)] ]] {
+        () {
+            emulate -LR zsh
+            setopt extendedglob warncreateglobal
+            if [[ $tpe == snippet ]] {
+                .zinit-compile-plugin "%$dir" ""
+            } else {
+                .zinit-compile-plugin "$id_as" ""
             }
         }
     }
@@ -2242,25 +2312,61 @@ zimv() {
 # ]]]
 # FUNCTION: ∞zinit-atpull-e-hook [[[
 ∞zinit-atpull-e-hook() {
+    (( ${+ICE[atpull]} )) || return 0
+    [[ -n ${ICE[atpull]} ]] || return 0
+    # Only process atpull"!cmd"
+    [[ $ICE[atpull] == "!"* ]] || return 0
+
     [[ "$1" = plugin ]] && \
         local dir="${5#%}" hook="$6" subtype="$7" || \
         local dir="${4#%}" hook="$5" subtype="$6"
 
-    [[ $ICE[atpull] = "!"* ]] && .zinit-countdown atpull && { local ___oldcd=$PWD; (( ${+ICE[nocd]} == 0 )) && { () { setopt localoptions noautopushd; builtin cd -q "$dir"; } && .zinit-at-eval "${ICE[atpull]#\!}" "$ICE[atclone]"; ((1)); } || .zinit-at-eval "${ICE[atpull]#\!}" "$ICE[atclone]"; () { setopt localoptions noautopushd; builtin cd -q "$___oldcd"; };}
+    local atpull=${ICE[atpull]#\!}
+    local rc=0
+
+    .zinit-countdown atpull && {
+        local ___oldcd=$PWD
+        (( ${+ICE[nocd]} == 0 )) && {
+            () { setopt localoptions noautopushd; builtin cd -q "$dir"; }
+        }
+        .zinit-at-eval "$atpull" "$ICE[atclone]"
+        rc="$?"
+        () { setopt localoptions noautopushd; builtin cd -q "$___oldcd"; };
+    }
+
+    return "$rc"
 }
 # ]]]
 # FUNCTION: ∞zinit-atpull-hook [[[
 ∞zinit-atpull-hook() {
-    [[ "$1" = plugin ]] && \
+    (( ${+ICE[atpull]} )) || return 0
+    [[ -n ${ICE[atpull]} ]] || return 0
+    # Exit early if atpull"!cmd" -> this is done by zinit-atpull-e-hook
+    [[ $ICE[atpull] == "!"* ]] && return 0
+
+    [[ "$1" == plugin ]] && \
         local dir="${5#%}" hook="$6" subtype="$7" || \
         local dir="${4#%}" hook="$5" subtype="$6"
 
-    [[ -n $ICE[atpull] && $ICE[atpull] != "!"* ]] && .zinit-countdown atpull && { local ___oldcd=$PWD; (( ${+ICE[nocd]} == 0 )) && { () { setopt localoptions noautopushd; builtin cd -q "$dir"; } && .zinit-at-eval "$ICE[atpull]" "$ICE[atclone]"; ((1)); } || .zinit-at-eval "${ICE[atpull]#!}" $ICE[atclone]; () { setopt localoptions noautopushd; builtin cd -q "$___oldcd"; };}
+    local atpull=${ICE[atpull]}
+    local rc=0
+
+    .zinit-countdown atpull && {
+        local ___oldcd=$PWD
+        (( ${+ICE[nocd]} == 0 )) && {
+            () { setopt localoptions noautopushd; builtin cd -q "$dir"; }
+        }
+        .zinit-at-eval "$atpull" $ICE[atclone]
+        rc="$?"
+        () { setopt localoptions noautopushd; builtin cd -q "$___oldcd"; };
+    }
+
+    return "$rc"
 }
 # ]]]
 # FUNCTION: ∞zinit-ps-on-update-hook [[[
 ∞zinit-ps-on-update-hook() {
-    if [[ -z $ICE[ps-on-update] ]] { return 1; }
+    [[ -z $ICE[ps-on-update] ]] && return 0
 
     [[ "$1" = plugin ]] && \
         local tpe="$1" dir="${5#%}" hook="$6" subtype="$7" || \

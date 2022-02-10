@@ -501,9 +501,9 @@ ZINIT[EXTENDED_GLOB]=""
     # This in effect works as: "if different, then readlink"
     [[ -n "$tmp" ]] && in_plugin_path="$tmp"
 
-    if [[ "$in_plugin_path" != "$cpath" ]]; then
+    if [[ "$in_plugin_path" != "$cpath" && -r "$in_plugin_path" ]]; then
         # Get the user---plugin part of path
-        while [[ "$in_plugin_path" != ${ZINIT[PLUGINS_DIR]}/[^/]## && "$in_plugin_path" != "/" ]]; do
+        while [[ "$in_plugin_path" != ${ZINIT[PLUGINS_DIR]}/[^/]## && "$in_plugin_path" != "/" && "$in_plugin_path" != "." ]]; do
             in_plugin_path="${in_plugin_path:h}"
         done
         in_plugin_path="${in_plugin_path:t}"
@@ -716,12 +716,11 @@ ZINIT[EXTENDED_GLOB]=""
     local nl=$'\n' escape=$'\x1b['
     local -a lines
     (   builtin cd -q "$ZINIT[BIN_DIR]" && \
-        command git checkout master &>/dev/null && \
         command git checkout main &>/dev/null && \
         command git fetch --quiet && \
             lines=( ${(f)"$(command git log --color --date=short --pretty=format:'%Cgreen%cd %h %Creset%s %Cred%d%Creset || %b' ..FETCH_HEAD)"} )
         if (( ${#lines} > 0 )); then
-            # Remove the (origin/master ...) segments, to expect only tags to appear
+            # Remove the (origin/main ...) segments, to expect only tags to appear
             lines=( "${(S)lines[@]//\(([,[:blank:]]#(origin|HEAD|master|main)[^a-zA-Z]##(HEAD|origin|master|main)[,[:blank:]]#)#\)/}" )
             # Remove " ||" if it ends the line (i.e. no additional text from the body)
             lines=( "${lines[@]/ \|\|[[:blank:]]#(#e)/}" )
@@ -735,9 +734,9 @@ ZINIT[EXTENDED_GLOB]=""
             builtin print
         fi
         if [[ $1 != -q ]] {
-            command git pull --no-stat --ff-only origin master
+            command git pull --no-stat --ff-only origin main
         } else {
-            command git pull --no-stat --quiet --ff-only origin master
+            command git pull --no-stat --quiet --ff-only origin main
         }
     )
     if [[ $1 != -q ]] {
@@ -749,7 +748,7 @@ ZINIT[EXTENDED_GLOB]=""
     zcompile -U $ZINIT[BIN_DIR]/zinit-install.zsh
     zcompile -U $ZINIT[BIN_DIR]/zinit-autoload.zsh
     zcompile -U $ZINIT[BIN_DIR]/zinit-additional.zsh
-    zcompile -U $ZINIT[BIN_DIR]/git-process-output.zsh
+    zcompile -U $ZINIT[BIN_DIR]/share/git-process-output.zsh
     # Load for the current session
     [[ $1 != -q ]] && +zinit-message "Reloading Zinit for the current session{…}"
     source $ZINIT[BIN_DIR]/zinit.zsh
@@ -1422,7 +1421,7 @@ ZINIT[EXTENDED_GLOB]=""
 # $2 - plugin spec (4 formats: user---plugin, user/plugin, user (+ plugin in $2), plugin)
 # $3 - plugin (only when $1 - i.e. user - given)
 .zinit-update-or-status() {
-    # Ustawia opcję localtraps.
+    # Set the localtraps option.
     emulate -LR zsh
     setopt extendedglob nullglob warncreateglobal typesetsilent noshortloops
 
@@ -1430,11 +1429,11 @@ ZINIT[EXTENDED_GLOB]=""
     ZINIT[first-plugin-mark]=${${ZINIT[first-plugin-mark]:#init}:-1}
     ZINIT[-r/--reset-opt-hook-has-been-run]=0
 
-    # Dostarcz oraz po zakończeniu wycofaj funkcję `m`.
+    # Deliver and withdraw the `m` function when finished.
     .zinit-set-m-func set
     trap ".zinit-set-m-func unset" EXIT
 
-    integer retval was_snippet
+    integer retval hook_rc was_snippet
     .zinit-two-paths "$2${${2:#(%|/)*}:+${3:+/}}$3"
     if [[ -d ${reply[-4]} || -d ${reply[-2]} ]]; then
         .zinit-update-or-status-snippet "$1" "$2${${2:#(%|/)*}:+${3:+/}}$3"
@@ -1574,6 +1573,12 @@ ZINIT[EXTENDED_GLOB]=""
                 for key in "${reply[@]}"; do
                     arr=( "${(Q)${(z@)ZINIT_EXTS[$key]:-$ZINIT_EXTS2[$key]}[@]}" )
                     "${arr[5]}" plugin "$user" "$plugin" "$id_as" "$local_dir" "${${key##(zinit|z-annex) hook:}%% <->}" update:bin
+                    hook_rc=$?
+                    [[ "$hook_rc" -ne 0 ]] && {
+                        # note: this will effectively return the last != 0 rc
+                        retval="$hook_rc"
+                        builtin print -Pr -- "${ZINIT[col-warn]}Warning:%f%b ${ZINIT[col-obj]}${arr[5]}${ZINIT[col-warn]} hook returned with ${ZINIT[col-obj]}${hook_rc}${ZINIT[col-rst]}"
+                    }
                 done
 
                 if (( ZINIT[annex-multi-flag:pull-active] >= 2 )) {
@@ -1657,6 +1662,12 @@ ZINIT[EXTENDED_GLOB]=""
                   for key in "${reply[@]}"; do
                       arr=( "${(Q)${(z@)ZINIT_EXTS[$key]:-$ZINIT_EXTS2[$key]}[@]}" )
                       "${arr[5]}" plugin "$user" "$plugin" "$id_as" "$local_dir" "${${key##(zinit|z-annex) hook:}%% <->}" update:git
+                      hook_rc=$?
+                      [[ "$hook_rc" -ne 0 ]] && {
+                          # note: this will effectively return the last != 0 rc
+                          retval="$hook_rc"
+                          builtin print -Pr -- "${ZINIT[col-warn]}Warning:%f%b ${ZINIT[col-obj]}${arr[5]}${ZINIT[col-warn]} hook returned with ${ZINIT[col-obj]}${hook_rc}${ZINIT[col-rst]}"
+                      }
                   done
                   ICE=()
                   (( ZINIT[annex-multi-flag:pull-active] >= 2 )) && command git pull --no-stat ${=ice[pullopts]:---ff-only} origin ${ice[ver]:-$main_branch} |& command egrep -v '(FETCH_HEAD|up.to.date\.|From.*://)'
@@ -1698,6 +1709,12 @@ ZINIT[EXTENDED_GLOB]=""
             for key in "${reply[@]}"; do
                 arr=( "${(Q)${(z@)ZINIT_EXTS[$key]:-$ZINIT_EXTS2[$key]}[@]}" )
                 "${arr[5]}" plugin "$user" "$plugin" "$id_as" "$local_dir" "${${key##(zinit|z-annex) hook:}%% <->}" update
+                hook_rc="$?"
+                [[ "$hook_rc" -ne 0 ]] && {
+                    # note: this will effectively return the last != 0 rc
+                    retval="$hook_rc"
+                    builtin print -Pr -- "${ZINIT[col-warn]}Warning:%f%b ${ZINIT[col-obj]}${arr[5]}${ZINIT[col-warn]} hook returned with ${ZINIT[col-obj]}${hook_rc}${ZINIT[col-rst]}"
+                }
             done
 
             # Run annexes' atpull hooks (the after atpull-ice ones).
@@ -1710,6 +1727,12 @@ ZINIT[EXTENDED_GLOB]=""
             for key in "${reply[@]}"; do
                 arr=( "${(Q)${(z@)ZINIT_EXTS[$key]:-$ZINIT_EXTS2[$key]}[@]}" )
                 "${arr[5]}" plugin "$user" "$plugin" "$id_as" "$local_dir" "${${key##(zinit|z-annex) hook:}%% <->}" update
+                hook_rc="$?"
+                [[ "$hook_rc" -ne 0 ]] && {
+                    # note: this will effectively return the last != 0 rc
+                    retval="$hook_rc"
+                    builtin print -Pr -- "${ZINIT[col-warn]}Warning:%f%b ${ZINIT[col-obj]}${arr[5]}${ZINIT[col-warn]} hook returned with ${ZINIT[col-obj]}${hook_rc}${ZINIT[col-rst]}"
+                }
             done
             ICE=()
         }
@@ -1729,6 +1752,12 @@ ZINIT[EXTENDED_GLOB]=""
     for key in "${reply[@]}"; do
         arr=( "${(Q)${(z@)ZINIT_EXTS[$key]:-$ZINIT_EXTS2[$key]}[@]}" )
         "${arr[5]}" plugin "$user" "$plugin" "$id_as" "$local_dir" "${${key##(zinit|z-annex) hook:}%% <->}" update:$ZINIT[annex-multi-flag:pull-active]
+        hook_rc=$?
+        [[ "$hook_rc" -ne 0 ]] && {
+            # note: this will effectively return the last != 0 rc
+            retval="$hook_rc"
+            builtin print -Pr -- "${ZINIT[col-warn]}Warning:%f%b ${ZINIT[col-obj]}${arr[5]}${ZINIT[col-warn]} hook returned with ${ZINIT[col-obj]}${hook_rc}${ZINIT[col-rst]}"
+        }
     done
     ICE=()
 
@@ -1813,7 +1842,7 @@ ZINIT[EXTENDED_GLOB]=""
         +zinit-message "{msg2}Restarting the update with the new codebase loaded.{rst}"$'\n'
 
     local file
-    integer sum el
+    integer sum el update_rc
     for file ( "" -side -install -autoload ) {
         .zinit-get-mtime-into "${ZINIT[BIN_DIR]}/zinit$file.zsh" el; sum+=el
     }
@@ -1927,6 +1956,11 @@ ZINIT[EXTENDED_GLOB]=""
         else
             (( !OPTS[opt_-q,--quiet] )) && builtin print "Updating $REPLY" || builtin print -n .
             .zinit-update-or-status update "$user" "$plugin"
+            update_rc=$?
+            [[ $update_rc -ne 0 ]] && {
+                +zinit-message "🚧{warn}Warning: {pid}${user}/${plugin} {warn}update returned {obj}$update_rc"
+                retval=$?
+            }
         fi
     done
 
@@ -1934,6 +1968,8 @@ ZINIT[EXTENDED_GLOB]=""
     if (( !OPTS[opt_-q,--quiet] )) {
         +zinit-message "{msg2}The update took {obj}${SECONDS}{msg2} seconds{rst}"
     }
+
+    return "$retval"
 } # ]]]
 # FUNCTION: .zinit-update-in-parallel [[[
 .zinit-update-all-parallel() {
@@ -2054,7 +2090,7 @@ ZINIT[EXTENDED_GLOB]=""
     } elif (( counter == 1 && !OPTS[opt_-q,--quiet] )) {
         +zinit-message "{obj}Spawning the next{num}" \
             "${OPTS[value]}{obj} concurrent update jobs" \
-            "({msg2}%F{153}${tpe}{obj}){…}{rst}"
+            "({msg2}${tpe}{obj}){…}{rst}"
     }
 }
 # ]]]
@@ -2668,12 +2704,12 @@ ZINIT[EXTENDED_GLOB]=""
 
     .zinit-get-path "$1" "$2" && {
         if [[ -e $REPLY ]]; then
-            builtin pushd $REPLY
+            builtin cd $REPLY
         else
             +zinit-message "No such plugin or snippet"
             return 1
         fi
-        builtin print
+        # builtin print
     } || {
         +zinit-message "No such plugin or snippet"
         return 1
@@ -2908,15 +2944,15 @@ builtin print -Pr \"\$ZINIT[col-obj]Done (with the exit code: \$_retval).%f%b\""
         uspl1=${p:t}
         [[ $uspl1 = custom || $uspl1 = _local---zinit ]] && continue
 
-        pushd -q "$p" >/dev/null || continue
+        pushd "$p" >/dev/null || continue
         if [[ -d .git ]]; then
-            gitout=$(command git log --all --max-count=1 --since=$timespec 2>/dev/null`)
+            gitout=`command git log --all --max-count=1 --since=$timespec 2>/dev/null`
             if [[ -n $gitout ]]; then
                 .zinit-any-colorify-as-uspl2 "$uspl1"
                 builtin print -r -- "$REPLY"
             fi
         fi
-        popd -q >/dev/null
+        popd >/dev/null
     done
 } # ]]]
 # FUNCTION: .zinit-create [[[
@@ -3006,7 +3042,7 @@ builtin print -Pr \"\$ZINIT[col-obj]Done (with the exit code: \$_retval).%f%b\""
 # Copyright (c) $year $user_name
 
 # According to the Zsh Plugin Standard:
-# http://zdharma.org/Zsh-100-Commits-Club/Zsh-Plugin-Standard.html
+# https://zdharma-continuum.github.io/Zsh-100-Commits-Club/Zsh-Plugin-Standard.html
 
 0=\${\${ZERO:-\${0:#\$ZSH_ARGZERO}}:-\${(%):-%N}}
 0=\${\${(M)0:#/*}:-\$PWD/\$0}
@@ -3021,7 +3057,7 @@ if [[ \${zsh_loaded_plugins[-1]} != */${plugin:t} && -z \${fpath[(r)\${0:h}]} ]]
 typeset -gA Plugins
 Plugins[${${(U)plugin:t}//-/_}_DIR]="\${0:h}"
 
-autoload -Uz example-script
+autoload -Uz template-script
 
 # Use alternate vim marks [[[ and ]]] as the original ones can
 # confuse nested substitutions, e.g.: \${\${\${VAR}}}
@@ -3029,26 +3065,20 @@ autoload -Uz example-script
 # vim:ft=zsh:tw=80:sw=4:sts=4:et:foldmarker=[[[,]]]
 EOF
 
-    command cat >>! .git/config <<EOF
-
-[diff "zsh"]
-    xfuncname = "^((function[[:blank:]]+[^[:blank:]]+[[:blank:]]*(\\\\(\\\\)|))|([^[:blank:]]+[[:blank:]]*\\\\(\\\\)))[[:blank:]]*(\\\\{|)[[:blank:]]*$"
-[diff "markdown"]
-    xfuncname = "^#+[[:blank:]].*$"
-EOF
-
-    builtin print -r -- "*.zsh  diff=zsh" >! .gitattributes
-    builtin print -r -- "*.md   diff=markdown" >! .gitattributes
     builtin print -r -- "# $plugin" >! "README.md"
     command cp -vf "${ZINIT[BIN_DIR]}/LICENSE" LICENSE
-    command cp -vf "${ZINIT[BIN_DIR]}/doc/Zsh.gitignore" .gitignore
-    command cp -vf "${ZINIT[BIN_DIR]}/doc/example-script" .
+    command cp -vf "${ZINIT[BIN_DIR]}/share/template-plugin/zsh.gitignore" .gitignore
+    command cp -vf "${ZINIT[BIN_DIR]}/share/template-plugin/template-script" .
 
-    command sed -i -e "s/MY_PLUGIN_DIR/${${(U)plugin:t}//-/_}_DIR/g" example-script
-    command sed -i -e "s/USER_NAME/$user_name/g" example-script
-    command sed -i -e "s/YEAR/$year/g" example-script
+    command sed -i -e "s/MY_PLUGIN_DIR/${${(U)plugin:t}//-/_}_DIR/g" template-script
+    command sed -i -e "s/USER_NAME/$user_name/g" template-script
+    command sed -i -e "s/YEAR/$year/g" template-script
 
     if [[ "$user" != "_local" && -n "$user" ]]; then
+        builtin print "Your repository is ready\!"
+        builtin print "An MIT LICENSE file has been placed - please review the " \
+                      "license terms to see if they fit your new project:"
+        builtin print "- https://choosealicense.com/"
         builtin print "Remote repository $uspl2col set up as origin."
         builtin print "You're in plugin's local folder, the files aren't added to git."
         builtin print "Your next step after commiting will be:"
@@ -3085,10 +3115,10 @@ EOF
     {
         if (( ${+commands[bat]} )); then
             builtin print "Glancing with ${ZINIT[col-info]}bat${ZINIT[col-rst]}"
-            bat --color=always -l bash -P "$fname"
+            bat --paging=never --color=always -l bash "$fname"
         elif (( ${+commands[pygmentize]} )); then
             builtin print "Glancing with ${ZINIT[col-info]}pygmentize${ZINIT[col-rst]}"
-            pygmentize -l bash -g "$fname"
+            pygmentize -l bash "$fname"
         elif (( ${+commands[highlight]} )); then
             builtin print "Glancing with ${ZINIT[col-info]}highlight${ZINIT[col-rst]}"
             if (( has_256_colors )); then
@@ -3208,22 +3238,16 @@ EOF
 } # ]]]
 # FUNCTION: .zinit-ls [[[
 .zinit-ls() {
-    local cmd
-    if (( ${+commands[exa]} )); then
-        cmd="exa"
-    elif (( ${+commands[tree]} )); then
-        cmd="tree"
-    else
+    (( ${+commands[tree]} )) || {
         builtin print "${ZINIT[col-error]}No \`tree' program, it is required by the subcommand \`ls\'${ZINIT[col-rst]}"
         builtin print "Download from: http://mama.indstate.edu/users/ice/tree/"
         builtin print "It is also available probably in all distributions and Homebrew, as package \`tree'"
-    fi
+    }
     (
         setopt localoptions extendedglob nokshglob noksharrays
         builtin cd -q "${ZINIT[SNIPPETS_DIR]}"
         local -a list
-        [[ $cmd = "exa" ]] && list=( "${(f@)"$(LANG=en_US.utf-8 command exa -TL 3 --color=always --icons)"}" )
-        [[ $cmd = "tree" ]] && list=( "${(f@)"$(LANG=en_US.utf-8 tree -L 3 --charset utf-8)"}" )
+        list=( "${(f@)"$(LANG=en_US.utf-8 LS_COLORS="$LS_COLORS" command tree -L 3 --charset utf-8)"}" )
         # Oh-My-Zsh single file
         list=( "${list[@]//(#b)(https--github.com--(ohmyzsh|robbyrussel)l--oh-my-zsh--raw--master(--)(#c0,1)(*))/$ZINIT[col-info]Oh-My-Zsh$ZINIT[col-error]${match[2]/--//}$ZINIT[col-pname]${match[3]//--/$ZINIT[col-error]/$ZINIT[col-pname]} $ZINIT[col-info](single-file)$ZINIT[col-rst] ${match[1]}}" )
         # Oh-My-Zsh SVN
@@ -3317,11 +3341,11 @@ EOF
     elif [[ "$1" = "info" ]]; then
         if [[ "$2" = "--link" ]]; then
               builtin print -r "You can copy the error messages and submit"
-              builtin print -r "error-report at: https://github.com/zdharma/zinit/issues"
+              builtin print -r "error-report at: https://github.com/zdharma-continuum/zinit-module/issues"
         else
             builtin print -r "To load the module, add following 2 lines to .zshrc, at top:"
-            builtin print -r "    module_path+=( \"${ZINIT[BIN_DIR]}/zmodules/Src\" )"
-            builtin print -r "    zmodload zdharma/zplugin"
+            builtin print -r "    module_path+=( \"${ZINIT[MODULE_DIR]}/Src\" )"
+            builtin print -r "    zmodload zdharma_continuum/zinit"
             builtin print -r ""
             builtin print -r "After loading, use command \`zpmod' to communicate with the module."
             builtin print -r "See \`zpmod -h' for more information."
@@ -3344,9 +3368,19 @@ EOF
 .zinit-build-module() {
     setopt localoptions localtraps
     trap 'return 1' INT TERM
-    ( builtin cd -q "${ZINIT[BIN_DIR]}"/zmodules
-      +zinit-message "{pname}== Building module zdharma/zplugin, running: make clean, then ./configure and then make =={rst}"
-      +zinit-message "{pname}== The module sources are located at: "${ZINIT[BIN_DIR]}"/zmodules =={rst}"
+    if command git -C "${ZINIT[MODULE_DIR]}" rev-parse 2>/dev/null; then
+        command git -C "${ZINIT[MODULE_DIR]}" clean -d -f -f
+        command git -C "${ZINIT[MODULE_DIR]}" reset --hard HEAD
+        command git -C "${ZINIT[MODULE_DIR]}" pull
+    else
+        command git clone "https://github.com/zdharma-continuum/zinit-module.git" "${ZINIT[MODULE_DIR]}" || {
+            builtin print "${ZINIT[col-error]}Failed to clone module repo${ZINIT[col-rst]}"
+            return 1
+        }
+    fi
+    ( builtin cd -q "${ZINIT[MODULE_DIR]}"
+      +zinit-message "{pname}== Building module zdharma-continuum/zinit-module, running: make clean, then ./configure and then make =={rst}"
+      +zinit-message "{pname}== The module sources are located at: "${ZINIT[MODULE_DIR]}" =={rst}"
       if [[ -f Makefile ]] {
           if [[ "$1" = "--clean" ]] {
               noglob +zinit-message {p}-- make distclean --{rst}
@@ -3361,7 +3395,7 @@ EOF
       CPPFLAGS=-I/usr/local/include CFLAGS="-g -Wall -O3" LDFLAGS=-L/usr/local/lib ./configure --disable-gdbm --without-tcsetpgrp && {
           noglob +zinit-message {p}-- make --{rst}
           if { make } {
-            [[ -f Src/zdharma/zplugin.so ]] && cp -vf Src/zdharma/zplugin.{so,bundle}
+            [[ -f Src/zdharma_continuum/zinit.so ]] && cp -vf Src/zdharma_continuum/zinit.{so,bundle}
             noglob +zinit-message "{info}Module has been built correctly.{rst}"
             .zinit-module info
           } else {
@@ -3369,7 +3403,7 @@ EOF
               .zinit-module info --link
           }
       }
-      builtin print $EPOCHSECONDS >! "${ZINIT[BIN_DIR]}"/zmodules/COMPILED_AT
+      builtin print $EPOCHSECONDS >! "${ZINIT[MAN_DIR]}/COMPILED_AT"
     )
 }
 # ]]]

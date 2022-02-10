@@ -41,8 +41,10 @@ fi
 
 # User can override ZINIT[HOME_DIR].
 if [[ -z ${ZINIT[HOME_DIR]} ]]; then
-    # Ignore ZDOTDIR if user manually put Zinit to $HOME.
-    if [[ -d $HOME/.zinit ]]; then
+    # Search for zinit home in the usual locations
+    if [[ -d ${XDG_DATA_HOME:-${HOME}/.local/share}/zinit ]]; then
+        ZINIT[HOME_DIR]="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit"
+    elif [[ -d $HOME/.zinit ]]; then
         ZINIT[HOME_DIR]="$HOME/.zinit"
     elif [[ -d ${ZDOTDIR:-$HOME}/.zinit ]]; then
         ZINIT[HOME_DIR]="${ZDOTDIR:-$HOME}/.zinit"
@@ -51,7 +53,7 @@ if [[ -z ${ZINIT[HOME_DIR]} ]]; then
     elif [[ -d ${ZDOTDIR:-$HOME}/.zplugin ]]; then
         ZINIT[HOME_DIR]="${ZDOTDIR:-$HOME}/.zplugin"
     else
-        ZINIT[HOME_DIR]="${ZDOTDIR:-$HOME}/.zinit"
+        ZINIT[HOME_DIR]="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit"
     fi
 fi
 
@@ -70,13 +72,17 @@ aliases|countdown|light-mode|is-snippet|git|verbose|cloneopts|\
 pullopts|debug|null|binary|make|nocompile|notify|reset"
 
 # Can be customized.
-: ${ZINIT[PLUGINS_DIR]:=${ZINIT[HOME_DIR]}/plugins}
 : ${ZINIT[COMPLETIONS_DIR]:=${ZINIT[HOME_DIR]}/completions}
-: ${ZINIT[SNIPPETS_DIR]:=${ZINIT[HOME_DIR]}/snippets}
+: ${ZINIT[MODULE_DIR]:=${ZINIT[HOME_DIR]}/module}
+: ${ZINIT[PACKAGES_REPO]:=zdharma-continuum/zinit-packages}
+: ${ZINIT[PACKAGES_BRANCH]:=HEAD}
+: ${ZINIT[PLUGINS_DIR]:=${ZINIT[HOME_DIR]}/plugins}
 : ${ZINIT[SERVICES_DIR]:=${ZINIT[HOME_DIR]}/services}
+: ${ZINIT[SNIPPETS_DIR]:=${ZINIT[HOME_DIR]}/snippets}
 typeset -g ZPFX
 : ${ZPFX:=${ZINIT[HOME_DIR]}/polaris}
 : ${ZINIT[ALIASES_OPT]::=${${options[aliases]:#off}:+1}}
+: ${ZINIT[MAN_DIR]:=${ZPFX}/man}
 
 ZINIT[PLUGINS_DIR]=${~ZINIT[PLUGINS_DIR]}   ZINIT[COMPLETIONS_DIR]=${~ZINIT[COMPLETIONS_DIR]}
 ZINIT[SNIPPETS_DIR]=${~ZINIT[SNIPPETS_DIR]} ZINIT[SERVICES_DIR]=${~ZINIT[SERVICES_DIR]}
@@ -133,38 +139,40 @@ if [[ -z $SOURCED && ( ${+terminfo} -eq 1 && -n ${terminfo[colors]} ) || \
       ( ${+termcap} -eq 1 && -n ${termcap[Co]} )
 ]] {
     ZINIT+=(
-      col-pname   $'\e[1;4m\e[38;5;004m' col-uname   $'\e[1;4m\e[38;5;013m' col-keyword $'\e[14m'
-      col-note    $'\e[38;5;007m'        col-error   $'\e[1m\e[38;5;001m'   col-p       $'\e[38;5;81m'
-      col-info    $'\e[38;5;82m'         col-info2   $'\e[38;5;011m'      col-profile $'\e[38;5;007m'
-      col-uninst  $'\e[38;5;010m'        col-info3   $'\e[1m\e[38;5;011m' col-slight  $'\e[38;5;230m'
-      col-failure $'\e[38;5;001m'        col-happy   $'\e[1m\e[38;5;82m'  col-annex   $'\e[38;5;002m'
-      col-id-as   $'\e[4;38;5;011m'      col-version $'\e[3;38;5;87m'
-      col-pre     $'\e[38;5;135m'        col-msg   $'\e[0m'        col-msg2  $'\e[38;5;009m'
-      col-obj     $'\e[38;5;012m'        col-obj2  $'\e[38;5;010m' col-file  $'\e[3;38;5;117m'
-      col-dir     $'\e[3;38;5;002m'      col-func $'\e[38;5;219m'
-      col-url     $'\e[38;5;75m'         col-meta  $'\e[38;5;57m'  col-meta2 $'\e[38;5;147m'
-      col-data    $'\e[38;5;010m'         col-data2 $'\e[38;5;010m' col-hi    $'\e[1m\e[38;5;010m'
-      col-var     $'\e[38;5;81m'         col-glob  $'\e[38;5;011m' col-ehi   $'\e[1m\e[38;5;210m'
-      col-cmd     $'\e[38;5;002m'         col-ice   $'\e[38;5;39m'  col-nl    $'\n'
-      col-txt     $'\e[38;5;10m'        col-num  $'\e[3;38;5;155m' col-term  $'\e[38;5;185m'
-      col-warn    $'\e[38;5;009m'        col-apo $'\e[1;38;5;220m' col-ok    $'\e[38;5;220m'
-      col-faint   $'\e[38;5;238m'        col-opt   $'\e[38;5;219m' col-lhi   $'\e[38;5;81m'
-      col-tab     $' \t '                col-msg3  $'\e[38;5;238m' col-b-lhi $'\e[1m\e[38;5;75m'
-      col-bar     $'\e[38;5;82m'         col-th-bar $'\e[38;5;82m'
-      col-rst     $'\e[0m'               col-b     $'\e[1m'        col-nb     $'\e[22m'
-      col-u       $'\e[4m'               col-it    $'\e[3m'        col-st     $'\e[9m'
-      col-nu      $'\e[24m'              col-nit   $'\e[23m'       col-nst    $'\e[29m'
-      col-bspc    $'\b'                  col-b-warn $'\e[1;38;5;009m' col-u-warn $'\e[4;38;5;009m'
-      col-mdsh    $'\e[1;38;5;220m'"${${${(M)LANG:#*UTF-8*}:+–}:--}"$'\e[0m'
-      col-mmdsh   $'\e[1;38;5;220m'"${${${(M)LANG:#*UTF-8*}:+――}:--}"$'\e[0m'
-      col-↔       ${${${(M)LANG:#*UTF-8*}:+$'\e[38;5;82m↔\e[0m'}:-$'\e[38;5;82m«-»\e[0m'}
-      col-…       "${${${(M)LANG:#*UTF-8*}:+…}:-...}"  col-ndsh  "${${${(M)LANG:#*UTF-8*}:+–}:-}"
-      col--…      "${${${(M)LANG:#*UTF-8*}:+⋯⋯}:-···}" col-lr    "${${${(M)LANG:#*UTF-8*}:+↔}:-"«-»"}"
+        # Old colors: 31m
+        col-pname   $'\e[1;4m\e[32m'     col-uname   $'\e[1;4m\e[35m'     col-keyword $'\e[32m'
+        col-note    $'\e[38;5;148m'       col-error   $'\e[1m\e[38;5;204m' col-p       $'\e[38;5;81m'
+        col-info    $'\e[38;5;82m'       col-info2   $'\e[38;5;227m'      col-profile $'\e[38;5;148m'
+        col-uninst  $'\e[38;5;118m'      col-info3   $'\e[1m\e[38;5;227m' col-slight  $'\e[38;5;230m'
+        col-failure $'\e[38;5;204m'      col-happy   $'\e[1m\e[38;5;82m'  col-annex   $'\e[38;5;153m'
+        col-id-as   $'\e[4;38;5;220m'    col-version $'\e[3;38;5;87m'
+        # The more recent, fresh ones:
+        col-pre  $'\e[38;5;135m'  col-msg   $'\e[0m'        col-msg2  $'\e[38;5;172m'
+        col-obj  $'\e[38;5;218m'  col-obj2  $'\e[38;5;118m' col-file  $'\e[3;38;5;117m'
+        col-dir  $'\e[3;38;5;153m' col-func $'\e[38;5;219m'
+        col-url  $'\e[38;5;75m'   col-meta  $'\e[38;5;57m'  col-meta2 $'\e[38;5;147m'
+        col-data $'\e[38;5;82m'   col-data2 $'\e[38;5;117m' col-hi    $'\e[1m\e[38;5;183m'
+        col-var  $'\e[38;5;81m'   col-glob  $'\e[38;5;227m' col-ehi   $'\e[1m\e[38;5;210m'
+        col-cmd  $'\e[38;5;82m'   col-ice   $'\e[38;5;39m'  col-nl    $'\n'
+        col-txt  $'\e[38;5;254m' col-num  $'\e[3;38;5;155m' col-term  $'\e[38;5;185m'
+        col-warn $'\e[38;5;214m'  col-apo $'\e[1;38;5;220m' col-ok    $'\e[38;5;220m'
+        col-faint $'\e[38;5;238m' col-opt   $'\e[38;5;219m' col-lhi   $'\e[38;5;81m'
+        col-tab  $' \t '            col-msg3  $'\e[38;5;238m' col-b-lhi $'\e[1m\e[38;5;75m'
+        col-bar  $'\e[38;5;82m'  col-th-bar $'\e[38;5;82m'
+        col-…    "${${${(M)LANG:#*UTF-8*}:+…}:-...}"  col-ndsh  "${${${(M)LANG:#*UTF-8*}:+–}:-}"
+        col-mdsh $'\e[1;38;5;220m'"${${${(M)LANG:#*UTF-8*}:+–}:--}"$'\e[0m'
+        col-mmdsh $'\e[1;38;5;220m'"${${${(M)LANG:#*UTF-8*}:+――}:--}"$'\e[0m'
+        col--…   "${${${(M)LANG:#*UTF-8*}:+⋯⋯}:-···}" col-lr    "${${${(M)LANG:#*UTF-8*}:+↔}:-"«-»"}"
+        col-↔    ${${${(M)LANG:#*UTF-8*}:+$'\e[38;5;82m↔\e[0m'}:-$'\e[38;5;82m«-»\e[0m'}
+        col-rst  $'\e[0m'        col-b     $'\e[1m'        col-nb     $'\e[22m'
+        col-u    $'\e[4m'        col-it    $'\e[3m'        col-st     $'\e[9m'
+        col-nu   $'\e[24m'       col-nit   $'\e[23m'       col-nst    $'\e[29m'
+        col-bspc $'\b'        col-b-warn $'\e[1;38;5;214m' col-u-warn $'\e[4;38;5;214m'
     )
     if [[ ( ${+terminfo} -eq 1 && ${terminfo[colors]} -ge 256 ) || \
           ( ${+termcap} -eq 1 && ${termcap[Co]} -ge 256 )
     ]] {
-        ZINIT+=( col-pname $'\e[1;4m\e[38;5;004m' col-uname  $'\e[1;4m\e[38;5;013m' )
+        ZINIT+=( col-pname $'\e[1;4m\e[38;5;39m' col-uname  $'\e[1;4m\e[38;5;207m' )
     }
 }
 
@@ -245,14 +253,12 @@ builtin setopt noaliases
         local PLUGIN_DIR="$ZINIT[PLUGINS_DIR]/${reply[1]:+$reply[1]---}${reply[2]//\//---}"
 
 
-    # "Elementy fpath" – tj. te elementy, które leżą wewnątrz katalogu wtyczki.
-    # Nazwa wynika z tego, że są to wybrane elementy fpath → a więc po prostu
-    # "elementy".
+    # "fpath elements" ----  those elements that lie inside the plug directory.
     local -a fpath_elements
     fpath_elements=( ${fpath[(r)$PLUGIN_DIR/*]} )
 
-    # Dodanie podkatalogu funkcji do elementów, jeżeli istnieje (działanie to jest
-    # wg Standardu Wtyczek w wersji 1.07 i późniejszych).
+    # Add a function subdirectory to items, if any (this action is
+    # according to the Plug Standard version 1.07 and later).
     [[ -d $PLUGIN_DIR/functions ]] && fpath_elements+=( "$PLUGIN_DIR"/functions )
 
     if (( ${+opts[(r)-X]} )); then
@@ -302,7 +308,7 @@ builtin setopt noaliases
                     ZINIT[WARN_SHOWN_FOR_$ZINIT[CUR_USPL2]]=1
                 fi
 
-                # Zastosowanie obejścia.
+                # Workaround
                 func=$func:t
             fi
             if [[ ${ZINIT[NEW_AUTOLOAD]} = 2 ]]; then
@@ -1029,7 +1035,7 @@ builtin setopt noaliases
 # FUNCTION: .zinit-register-plugin. [[[
 # Adds the plugin to ZINIT_REGISTERED_PLUGINS array and to the
 # zsh_loaded_plugins array (managed according to the plugin standard:
-# http://zdharma.org/Zsh-100-Commits-Club/Zsh-Plugin-Standard.html).
+# https://zdharma-continuum.github.io/Zsh-100-Commits-Club/Zsh-Plugin-Standard.html).
 .zinit-register-plugin() {
     local uspl2="$1" mode="$2" teleid="$3"
     integer ret=0
@@ -1166,7 +1172,7 @@ builtin setopt noaliases
 # ]]]
 # FUNCTION: @zsh-plugin-run-on-update. [[[
 # The Plugin Standard required mechanism, see:
-# http://zdharma.org/Zsh-100-Commits-Club/Zsh-Plugin-Standard.html
+# https://zdharma-continuum.github.io/Zsh-100-Commits-Club/Zsh-Plugin-Standard.html
 @zsh-plugin-run-on-unload() {
     ICE[ps-on-unload]="${(j.; .)@}"
     .zinit-pack-ice "$id_as" ""
@@ -1237,6 +1243,10 @@ builtin setopt noaliases
 
         # Also set up */bin and ZPFX in general.
         command mkdir 2>/dev/null -p $ZPFX/bin
+    }
+    [[ ! -d ${~ZINIT[MAN_DIR]}/man9 ]] && {
+        # Create ZINIT[MAN_DIR]/man{1..9}
+        command mkdir 2>/dev/null -p ${~ZINIT[MAN_DIR]}/man{1..9}
     }
 } # ]]]
 # FUNCTION: .zinit-load-object. [[[
@@ -1572,9 +1582,11 @@ builtin setopt noaliases
             zle && { builtin print; zle .reset-prompt; }
             return 1
         }
-        if ! .zinit-setup-plugin-dir "$___user" "$___plugin" "$___id_as" "$REPLY"; then
+        .zinit-setup-plugin-dir "$___user" "$___plugin" "$___id_as" "$REPLY"
+        local rc="$?"
+        if [[ "$rc" -ne 0 ]]; then
             zle && { builtin print; zle .reset-prompt; }
-            return 1
+            return "$rc"
         fi
         zle && ___rst=1
     }
@@ -1611,7 +1623,7 @@ builtin setopt noaliases
     (( ${+ICE[notify]} == 1 )) && { [[ $___retval -eq 0 || -n ${(M)ICE[notify]#\!} ]] && { local msg; eval "msg=\"${ICE[notify]#\!}\""; +zinit-deploy-message @msg "$msg" } || +zinit-deploy-message @msg "notify: Plugin not loaded / loaded with problem, the return code: $___retval"; }
     (( ${+ICE[reset-prompt]} == 1 )) && +zinit-deploy-message @___rst
 
-    # Wycofaj funkcję `m`.
+    # Unset the `m` function.
     .zinit-set-m-func unset
 
     # Mark no load is in progress.
@@ -1881,7 +1893,7 @@ builtin setopt noaliases
     # The expansion is: if there is @sleep: pfx, then use what's after.
     # it, otherwise substitute 0
     exec {THEFD} < <(LANG=C sleep $(( 0.01 + ${${${(M)1#@sleep:}:+${1#@sleep:}}:-0} )); builtin print -r -- ${1:#(@msg|@sleep:*)} "${@[2,-1]}"; )
-    command true # workaround a Zsh bug, see: http://www.zsh.org/mla/workers/2018/msg00966.html
+    command true # workaround a Zsh bug, see: https://www.zsh.org/mla/workers/2018/msg00966.html
     builtin zle -F "$THEFD" +zinit-deploy-message
 }
 # ]]]
@@ -1889,22 +1901,22 @@ builtin setopt noaliases
 .zinit-formatter-pid() {
     builtin emulate -L zsh -o extendedglob
 
-    # Zapamiętaj krańcowe białe znaki.
+    # Save whitespace location
     local pbz=${(M)1##(#s)[[:space:]]##}
     local kbz=${(M)1%%[[:space:]]##(#e)}
-    # Usuń skrajne białe znaki.
+    # trim whitespace
     1=${1//((#s)[[:space:]]##|[[:space:]]##(#e))/}
 
     ((${+functions[.zinit-first]})) || source ${ZINIT[BIN_DIR]}/zinit-side.zsh
     .zinit-any-colorify-as-uspl2 "$1";
 
-    # Zamień przynajmniej jeden znak na niełamalną spację, ponieważ z
-    # powodu problemów z implementacją krańcowe białe znaki są gubione…
+    # Replace at least one character with an unbreakable space, because
+    # due to implementation problems, marginal whitespace is lost ...
     pbz=${pbz/[[:blank:]]/ }
     local kbz_rev="${(j::)${(@Oas::)kbz}}"
     kbz="${(j::)${(@Oas::)${kbz_rev/[[:blank:]]/ }}}"
 
-    # Dostaw spowrotem krańcowe białe znaki.
+    # Re-add whitespace
     REPLY=$pbz$REPLY$kbz
 }
 # ]]]
@@ -1964,28 +1976,27 @@ builtin setopt noaliases
     fi
     local append influx in_prepend
     if [[ $2 == (b|u|it|st|nb|nu|nit|nst) ]]; then
-        # Powtórzenie kodu aby zabezpieczyć ewentualne krańcowe białe znaki
-        # oraz aby umożliwić akumulację tego kodu z innymi.
+        # Code repetition to preserve any leading/trailing whitespace
+        # and to allow accumulation of this code with others.
         append=$ZINIT[col-$2]
     elif [[ $2 == (…|ndsh|mdsh|mmdsh|-…|lr|) || -z $2 || -z $ZINIT[col-$2] ]]; then
-        # Wznowienie poprzedniego kodu escape, jeżeli jest taki zapisany.
+        # Resume previous escape code, if one is present.
         if [[ $ZINIT[__last-formatter-code] != (…|ndsh|mdsh|mmdsh|-…|lr|rst|nl|) ]]; then
             in_prepend=$ZINIT[col-$ZINIT[__last-formatter-code]]
             influx=$ZINIT[col-$ZINIT[__last-formatter-code]]
         fi
-        # W przeciwnym razie brak akcji – tylko skopiowanie
-        # tego kodu bez koloru.
+        # Otherwise no action - only copy of this code without color.
     else
-        # Zakończenie aktywności kodu escape.
+        # End of escaping logic
         append=$ZINIT[col-rst]
     fi
 
-    # Skonstruuj tekst.
+    # Construct the text.
     REPLY=$in_prepend${ZINIT[col-$2]:-$1}$influx$3$append
 
-    # Zamień nowe linie na znaki, które działają tak samo ale nie są
-    # usuwane w podstawieniu $( … ) – vertical tab 0xB ↔ 13 w systemie
-    # oktagonalnym połączone z powrotem karetki (015).
+    # Replace new lines with characters that work the same but are not
+    # deleted in the substitution $ (...) - vertical tab 0xB ↔ 13 in the system
+    # octagonal connected back carriage (015).
     local nl=$'\n' vertical=$'\013' carriager=$'\015'
     REPLY=${REPLY//$nl/$vertical$carriager}
 
@@ -2013,12 +2024,12 @@ $(.zinit-main-message-formatter "$match[6]" "$match[7]" "$match[8]"; \
 $match[7]}:-${ZINIT[__last-formatter-code]}}}:+}}}//←→}
 
 
-    # Przywróć domyślny kolor na końcu wiadomości.
+    # Reset color attributes at the end of the message
     msg=$msg$ZINIT[col-rst]
     # Output the processed message:
     builtin print -Pr ${opt:#--} -- $msg
 
-    # Potrzebne aby poprawnie zakończyć wiadomość z {nl}.
+    # Needed to correctly end a message with {nl}.
     if [[ -n ${opt:#*n*} || -z $opt ]]; then
         print -n $'\015'
     fi
@@ -2340,7 +2351,7 @@ $match[7]}:-${ZINIT[__last-formatter-code]}}}:+}}}//←→}
 
         AFD=13371337 # for older Zsh + noclobber option
         exec {AFD}< <(LANG=C command sleep 0.002; builtin print run;)
-	command true # workaround a Zsh bug, see: http://www.zsh.org/mla/workers/2018/msg00966.html
+	command true # workaround a Zsh bug, see: https://www.zsh.org/mla/workers/2018/msg00966.html
         zle -F "$AFD" @zinit-scheduler
     }
 
@@ -2587,7 +2598,7 @@ env-whitelist|bindkeys|module|add-fpath|fpath|run${reply:+|${(~j:|:)"${reply[@]#
                                             +zinit-message "{u-warn}Warning{b-warn}:{msg} Bad new-ices returned" \
                                                 "from the annex{ehi}:{rst} {annex}${___arr[3]}{msg}," \
                                                 "please file an issue report at:{url}" \
-                                    "https://github.com/zinit-zsh/${___arr[3]}/issues/new{msg}.{rst}"
+                                    "https://github.com/zdharma-continuum/${___arr[3]}/issues/new{msg}.{rst}"
                                             ___ices=(  ) ___retval+=7
                                         }
                             }
