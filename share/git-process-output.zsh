@@ -113,8 +113,8 @@ if [[ -n $TERM ]] {
     cat } |& \
 while read -r line; do
     (( ++ loop_count ))
-    if [[ "$line" = "Cloning into"* ]]; then
-        print; print $line
+    if [[ "$line" = (#b)("Cloning into ")\'(/[^/]*)\'(*) ]]; then
+        print; print -Pr -- $match[1]%F{3}%B$match[2]%f%b${${(M)match[3]:#...}:+'%F{12}...%f'}
         continue
     elif [[ "$line" = (#i)*user*name* || "$line" = (#i)*password* ]]; then
         print; print $line
