@@ -2656,8 +2656,8 @@ env-whitelist|bindkeys|module|add-fpath|fpath|run${reply:+|${(~j:|:)"${reply[@]#
                     if (( ${+ICE[if]} )) {
                         eval "${ICE[if]}" || { (( $# )) && shift; continue; };
                     }
-                    for REPLY ( ${(s.;.)ICE[has]} ) {
-                        (( ${+commands[$REPLY]} )) || \
+                    for REPLY ( ${(@)${(@s.;.)ICE[has]}//((#s)[[:space:]]##|[[:space:]]##(#e))/} ) {
+                        eval "${${(M)REPLY:#(#b)(\!|)(*)}:+(( $match[1] $+commands[$match[2]] ))}" || \
                             { (( $# )) && shift; continue 2; }
                     }
 
@@ -2804,8 +2804,8 @@ You can try to prepend {apo}${___q}{lhi}@{apo}'{error} to the ID if the last ice
                     if (( ${+ICE[if]} )) {
                         eval "${ICE[if]}" || return 1;
                     }
-                    for REPLY ( ${(s.;.)ICE[has]} ) {
-                        (( ${+commands[$REPLY]} )) || return 1
+                    for REPLY ( ${(@)${(@s.;.)ICE[has]}//((#s)[[:space:]]##|[[:space:]]##(#e))/} ) {
+                        eval "${${(M)REPLY:#(#b)(\!|)(*)}:+(( $match[1] $+commands[$match[2]] ))}" || return 1
                     }
 
                     shift

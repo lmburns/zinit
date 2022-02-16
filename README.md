@@ -9,6 +9,42 @@
 [![zunit tests][tests-badge]][tests-link]
 [![Join the chat at https://gitter.im/zdharma-continuum/zinit][gitter-badge]][gitter-link]
 
+### Fork
+* Adds `bat`'s `syntect` library as an option to view syntax highlighting
+* Uses `exa`'s tree view instead of `tree`
+* Modifies output colors of `git` commands
+* Adds the following option to the `has` ice
+  * Previously, `has` was able to be used with many programs, however spaces
+  weren't permitted. This is now valid:
+```zsh
+# old
+zinit depth'3' lucid wait'0a' has'loop;another' for \
+# new
+zinit depth'3' lucid wait'0a' has'loop;       another' for \
+```
+  * The has option now has the ability to check whether you **don't** have
+  a program before the line is ran.
+```zsh
+# checks whether you don't have the program 'loop'
+zinit depth'3' lucid wait'0a' has'!loop' for \
+# can be achieved with this as well
+zinit depth'3' lucid wait'0a' wait'[[ ! -v commands[loop] ]]' for \
+```
+  * The only difference between the above two is that the first one
+  will discard the line and not keep it held in the `@zinit-scheduler`. The
+  `wait` ice keeps the test in a continuous loop, which allows for the value to
+  change to true during an interactive shell. The `has'!loop'` will only be
+  ran once on the sourcing of the `.zshrc`.
+  * This is useful if you would like to not install more than one of the same
+  program.
+  * As a note, I am unsure if keeping many items in the
+  `@zinit-scheduler` would slow anything down. I would prefer to not have the
+  equivalent of a [`fswatch`](https://github.com/emcrisostomo/fswatch) command
+  being ran for every plugin I used.
+
+
+## Original
+
 > **Note**: [The original author](https://github.com/psprint) of zinit deleted the `zdharma` organization randomly.
 >
 > This is a reliable fork / place for the continuation of the project.
