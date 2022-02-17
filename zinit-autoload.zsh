@@ -1,7 +1,11 @@
 # -*- mode: sh; sh-indentation: 4; indent-tabs-mode: nil; sh-basic-offset: 4; -*-
 # Copyright (c) 2016-2020 Sebastian Gniazdowski and contributors.
 
-builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || { builtin print -P "${ZINIT[col-error]}ERROR:%f%b Couldn't find ${ZINIT[col-obj]}zinit-side.zsh%f%b."; return 1; }
+builtin source "${ZINIT[BIN_DIR]}/zinit-side.zsh" || \
+    {
+        builtin print -P "${ZINIT[col-error]}ERROR:%f%b Couldn't find ${ZINIT[col-obj]}zinit-side.zsh%f%b."
+        return 1
+    }
 
 ZINIT[EXTENDED_GLOB]=""
 
@@ -12,7 +16,7 @@ ZINIT[EXTENDED_GLOB]=""
 # FUNCTION: .zinit-unregister-plugin [[[
 # Removes the plugin from ZINIT_REGISTERED_PLUGINS array and from the
 # zsh_loaded_plugins array (managed according to the plugin standard)
-.zinit-unregister-plugin() {
+function .zinit-unregister-plugin() {
     .zinit-any-to-user-plugin "$1" "$2"
     local uspl2="${reply[-2]}${${reply[-2]:#(%|/)*}:+/}${reply[-1]}" \
         teleid="$3"
@@ -23,12 +27,13 @@ ZINIT[EXTENDED_GLOB]=""
     zsh_loaded_plugins[${zsh_loaded_plugins[(i)$teleid]}]=()
     ZINIT[STATES__$uspl2]="0"
 } # ]]]
+
 # FUNCTION: .zinit-diff-functions-compute [[[
 # Computes FUNCTIONS that holds new functions added by plugin.
 # Uses data gathered earlier by .zinit-diff-functions().
 #
 # $1 - user/plugin
-.zinit-diff-functions-compute() {
+function .zinit-diff-functions-compute() {
     local uspl2="$1"
 
     # Cannot run diff if *_BEFORE or *_AFTER variable is not set
@@ -59,12 +64,13 @@ ZINIT[EXTENDED_GLOB]=""
 
     return 0
 } # ]]]
+
 # FUNCTION: .zinit-diff-options-compute [[[
 # Computes OPTIONS that holds options changed by plugin.
 # Uses data gathered earlier by .zinit-diff-options().
 #
 # $1 - user/plugin
-.zinit-diff-options-compute() {
+function .zinit-diff-options-compute() {
     local uspl2="$1"
 
     # Cannot run diff if *_BEFORE or *_AFTER variable is not set
@@ -91,12 +97,13 @@ ZINIT[EXTENDED_GLOB]=""
     ZINIT[OPTIONS__$uspl2]="${(kv)opts[@]}"
     return 0
 } # ]]]
+
 # FUNCTION: .zinit-diff-env-compute [[[
 # Computes ZINIT_PATH, ZINIT_FPATH that hold (f)path components
 # added by plugin. Uses data gathered earlier by .zinit-diff-env().
 #
 # $1 - user/plugin
-.zinit-diff-env-compute() {
+function .zinit-diff-env-compute() {
     local uspl2="$1"
     typeset -a tmp
 
@@ -151,13 +158,14 @@ ZINIT[EXTENDED_GLOB]=""
 
     return 0
 } # ]]]
+
 # FUNCTION: .zinit-diff-parameter-compute [[[
 # Computes ZINIT_PARAMETERS_PRE, ZINIT_PARAMETERS_POST that hold
 # parameters created or changed (their type) by plugin. Uses
 # data gathered earlier by .zinit-diff-parameter().
 #
 # $1 - user/plugin
-.zinit-diff-parameter-compute() {
+function .zinit-diff-parameter-compute() {
     local uspl2="$1"
     typeset -a tmp
 
@@ -205,45 +213,50 @@ ZINIT[EXTENDED_GLOB]=""
 
     return 0
 } # ]]]
+
 # FUNCTION: .zinit-any-to-uspl2 [[[
 # Converts given plugin-spec to format that's used in keys for hash tables.
 # So basically, creates string "user/plugin" (this format is called: uspl2).
 #
 # $1 - plugin spec (4 formats: user---plugin, user/plugin, user, plugin)
 # $2 - (optional) plugin (only when $1 - i.e. user - given)
-.zinit-any-to-uspl2() {
+function .zinit-any-to-uspl2() {
     .zinit-any-to-user-plugin "$1" "$2"
     [[ "${reply[-2]}" = "%" ]] && REPLY="${reply[-2]}${reply[-1]}" || REPLY="${reply[-2]}${${reply[-2]:#(%|/)*}:+/}${reply[-1]//---//}"
 } # ]]]
+
 # FUNCTION: .zinit-save-set-extendedglob [[[
 # Enables extendedglob-option first saving if it was already
 # enabled, for restoration of this state later.
-.zinit-save-set-extendedglob() {
+function .zinit-save-set-extendedglob() {
     [[ -o "extendedglob" ]] && ZINIT[EXTENDED_GLOB]="1" || ZINIT[EXTENDED_GLOB]="0"
     builtin setopt extendedglob
 } # ]]]
+
 # FUNCTION: .zinit-restore-extendedglob [[[
 # Restores extendedglob-option from state saved earlier.
-.zinit-restore-extendedglob() {
+function .zinit-restore-extendedglob() {
     [[ "${ZINIT[EXTENDED_GLOB]}" = "0" ]] && builtin unsetopt extendedglob || builtin setopt extendedglob
 } # ]]]
+
 # FUNCTION: .zinit-prepare-readlink [[[
 # Prepares readlink command, used for establishing completion's owner.
 #
 # $REPLY = ":" or "readlink"
-.zinit-prepare-readlink() {
+function .zinit-prepare-readlink() {
     REPLY=":"
     if type readlink 2>/dev/null 1>&2; then
         REPLY="readlink"
     fi
 } # ]]]
+
 # FUNCTION: .zinit-clear-report-for [[[
 # Clears all report data for given user/plugin. This is
 # done by resetting all related global ZINIT_* hashes.
 #
 # $1 - plugin spec (4 formats: user---plugin, user/plugin, user, plugin)
 # $2 - (optional) plugin (only when $1 - i.e. user - given)
-.zinit-clear-report-for() {
+function .zinit-clear-report-for() {
     .zinit-any-to-uspl2 "$1" "$2"
 
     # Shadowing
@@ -278,13 +291,14 @@ ZINIT[EXTENDED_GLOB]=""
     ZINIT[PARAMETERS_BEFORE__$REPLY]=""
     ZINIT[PARAMETERS_AFTER__$REPLY]=""
 } # ]]]
+
 # FUNCTION: .zinit-exists-message [[[
 # Checks if plugin is loaded. Testable. Also outputs error
 # message if plugin is not loaded.
 #
 # $1 - plugin spec (4 formats: user---plugin, user/plugin, user, plugin)
 # $2 - (optional) plugin (only when $1 - i.e. user - given)
-.zinit-exists-message() {
+function .zinit-exists-message() {
     .zinit-any-to-uspl2 "$1" "$2"
     if [[ -z "${ZINIT_REGISTERED_PLUGINS[(r)$REPLY]}" ]]; then
         .zinit-any-colorify-as-uspl2 "$1" "$2"
@@ -293,8 +307,9 @@ ZINIT[EXTENDED_GLOB]=""
     fi
     return 0
 } # ]]]
+
 # FUNCTION: .zinit-at-eval [[[
-.zinit-at-eval() {
+function .zinit-at-eval() {
     local atclone="$2" atpull="$1"
     integer retval
     @zinit-substitute atclone atpull
@@ -312,7 +327,7 @@ ZINIT[EXTENDED_GLOB]=""
 # by given plugin.
 #
 # $1 - user/plugin (i.e. uspl2 format of plugin-spec)
-.zinit-format-functions() {
+function .zinit-format-functions() {
     local uspl2="$1"
 
     typeset -a func
@@ -359,12 +374,13 @@ ZINIT[EXTENDED_GLOB]=""
     # == 0 is: next element would have newline (postfix addition in "count ++")
     (( COLUMNS >= longest && count % 2 == 0 )) && REPLY="$REPLY"$'\n'
 } # ]]]
+
 # FUNCTION: .zinit-format-options [[[
 # Creates one-column text about options that changed when
 # plugin "$1" was loaded.
 #
 # $1 - user/plugin (i.e. uspl2 format of plugin-spec)
-.zinit-format-options() {
+function .zinit-format-options() {
     local uspl2="$1"
 
     REPLY=""
@@ -393,13 +409,14 @@ ZINIT[EXTENDED_GLOB]=""
         REPLY+="${(r:longest+1:: :)k}$txt"$'\n'
     done
 } # ]]]
+
 # FUNCTION: .zinit-format-env [[[
 # Creates one-column text about FPATH or PATH elements
 # added when given plugin was loaded.
 #
 # $1 - user/plugin (i.e. uspl2 format of plugin-spec)
 # $2 - if 1, then examine PATH, if 2, then examine FPATH
-.zinit-format-env() {
+function .zinit-format-env() {
     local uspl2="$1" which="$2"
 
     # Format PATH?
@@ -421,12 +438,13 @@ ZINIT[EXTENDED_GLOB]=""
 
     [[ -n "$answer" ]] && REPLY="$answer"
 } # ]]]
+
 # FUNCTION: .zinit-format-parameter [[[
 # Creates one column text that lists global parameters that
 # changed when the given plugin was loaded.
 #
 # $1 - user/plugin (i.e. uspl2 format of plugin-spec)
-.zinit-format-parameter() {
+function .zinit-format-parameter() {
     local uspl2="$1" infoc="${ZINIT[col-info]}" k
 
     builtin setopt localoptions extendedglob nokshglob noksharrays
@@ -486,7 +504,7 @@ ZINIT[EXTENDED_GLOB]=""
 #
 # $1 - absolute path to completion file (in COMPLETIONS_DIR)
 # $2 - readlink command (":" or "readlink")
-.zinit-get-completion-owner() {
+function .zinit-get-completion-owner() {
     setopt localoptions extendedglob nokshglob noksharrays noshwordsplit
     local cpath="$1"
     local readlink_cmd="$2"
@@ -518,24 +536,26 @@ ZINIT[EXTENDED_GLOB]=""
 
     REPLY="$in_plugin_path"
 } # ]]]
+
 # FUNCTION: .zinit-get-completion-owner-uspl2col [[[
 # For shortening of code - returns colorized plugin name
 # that owns given completion.
 #
 # $1 - absolute path to completion file (in COMPLETIONS_DIR)
 # $2 - readlink command (":" or "readlink")
-.zinit-get-completion-owner-uspl2col() {
+function .zinit-get-completion-owner-uspl2col() {
     # "cpath" "readline_cmd"
     .zinit-get-completion-owner "$1" "$2"
     .zinit-any-colorify-as-uspl2 "$REPLY"
 } # ]]]
+
 # FUNCTION: .zinit-find-completions-of-plugin [[[
 # Searches for completions owned by given plugin.
 # Returns them in `reply' array.
 #
 # $1 - plugin spec (4 formats: user---plugin, user/plugin, user, plugin)
 # $2 - plugin (only when $1 - i.e. user - given)
-.zinit-find-completions-of-plugin() {
+function .zinit-find-completions-of-plugin() {
     builtin setopt localoptions nullglob extendedglob nokshglob noksharrays
     .zinit-any-to-user-plugin "$1" "$2"
     local user="${reply[-2]}" plugin="${reply[-1]}" uspl
@@ -543,6 +563,7 @@ ZINIT[EXTENDED_GLOB]=""
 
     reply=( "${ZINIT[PLUGINS_DIR]}/$uspl"/**/_[^_.]*~*(*.zwc|*.html|*.txt|*.png|*.jpg|*.jpeg|*.js|*.md|*.yml|*.ri|_zsh_highlight*|/zsdoc/*|*.ps1)(DN) )
 } # ]]]
+
 # FUNCTION: .zinit-check-comp-consistency [[[
 # Zinit creates symlink for each installed completion.
 # This function checks whether given completion (i.e.
@@ -552,7 +573,7 @@ ZINIT[EXTENDED_GLOB]=""
 #
 # $1 - path to completion within plugin's directory
 # $2 - path to backup file within plugin's directory
-.zinit-check-comp-consistency() {
+function .zinit-check-comp-consistency() {
     local cfile="$1" bkpfile="$2"
     integer error="$3"
 
@@ -571,6 +592,7 @@ ZINIT[EXTENDED_GLOB]=""
     # Tell user that he can manually modify but should do it right
     (( error )) && builtin print "${ZINIT[col-error]}Manual edit of ${ZINIT[COMPLETIONS_DIR]} occured?${ZINIT[col-rst]}"
 } # ]]]
+
 # FUNCTION: .zinit-check-which-completions-are-installed [[[
 # For each argument that each should be a path to completion
 # within a plugin's dir, it checks whether that completion
@@ -578,7 +600,7 @@ ZINIT[EXTENDED_GLOB]=""
 # in reply.
 #
 # $1, ... - path to completion within plugin's directory
-.zinit-check-which-completions-are-installed() {
+function .zinit-check-which-completions-are-installed() {
     local i cfile bkpfile
     reply=( )
     for i in "$@"; do
@@ -592,6 +614,7 @@ ZINIT[EXTENDED_GLOB]=""
         fi
     done
 } # ]]]
+
 # FUNCTION: .zinit-check-which-completions-are-enabled [[[
 # For each argument that each should be a path to completion
 # within a plugin's dir, it checks whether that completion
@@ -602,7 +625,7 @@ ZINIT[EXTENDED_GLOB]=""
 # - i.e. disabled
 #
 # $1, ... - path to completion within plugin's directory
-.zinit-check-which-completions-are-enabled() {
+function .zinit-check-which-completions-are-enabled() {
     local i cfile
     reply=( )
     for i in "$@"; do
@@ -615,13 +638,14 @@ ZINIT[EXTENDED_GLOB]=""
         fi
     done
 } # ]]]
+
 # FUNCTION: .zinit-uninstall-completions [[[
 # Removes all completions of given plugin from Zshell (i.e. from FPATH).
 # The FPATH is typically `~/.zinit/completions/'.
 #
 # $1 - plugin spec (4 formats: user---plugin, user/plugin, user, plugin)
 # $2 - plugin (only when $1 - i.e. user - given)
-.zinit-uninstall-completions() {
+function .zinit-uninstall-completions() {
     builtin emulate -LR zsh
     builtin setopt nullglob extendedglob warncreateglobal typesetsilent noshortloops
 
@@ -684,7 +708,7 @@ ZINIT[EXTENDED_GLOB]=""
 
 # FUNCTION: .zinit-pager [[[
 # BusyBox less lacks the -X and -i options, so it can use more
-.zinit-pager() {
+function .zinit-pager() {
     setopt LOCAL_OPTIONS EQUALS
     # Quiet mode ? → no pager.
     if (( OPTS[opt_-n,--no-pager] )) {
@@ -707,7 +731,7 @@ ZINIT[EXTENDED_GLOB]=""
 # Updates Zinit code (does a git pull).
 #
 # User-action entry point.
-.zinit-self-update() {
+function .zinit-self-update() {
     emulate -LR zsh
     setopt extendedglob typesetsilent warncreateglobal
 
@@ -761,11 +785,12 @@ ZINIT[EXTENDED_GLOB]=""
         .zinit-get-mtime-into "${ZINIT[BIN_DIR]}/zinit$file.zsh" "ZINIT[mtime$file]"
     }
 } # ]]]
+
 # FUNCTION: .zinit-show-registered-plugins [[[
 # Lists loaded plugins (subcommands list, lodaded).
 #
 # User-action entry point.
-.zinit-show-registered-plugins() {
+function .zinit-show-registered-plugins() {
     emulate -LR zsh
     setopt extendedglob warncreateglobal typesetsilent noshortloops
 
@@ -790,6 +815,7 @@ ZINIT[EXTENDED_GLOB]=""
         builtin print -r -- "$REPLY"
     done
 } # ]]]
+
 # FUNCTION: .zinit-unload [[[
 # 0. Call the Zsh Plugin's Standard *_plugin_unload function
 # 0. Call the code provided by the Zsh Plugin's Standard @zsh-plugin-run-at-update
@@ -807,7 +833,7 @@ ZINIT[EXTENDED_GLOB]=""
 #
 # $1 - plugin spec (4 formats: user---plugin, user/plugin, user, plugin)
 # $2 - plugin (only when $1 - i.e. user - given)
-.zinit-unload() {
+function .zinit-unload() {
     .zinit-any-to-user-plugin "$1" "$2"
     local uspl2="${reply[-2]}${${reply[-2]:#(%|/)*}:+/}${reply[-1]}" user="${reply[-2]}" plugin="${reply[-1]}" quiet="${${3:+1}:-0}"
     local k
@@ -1297,6 +1323,7 @@ ZINIT[EXTENDED_GLOB]=""
     fi
 
 } # ]]]
+
 # FUNCTION: .zinit-show-report [[[
 # Displays report of the plugin given.
 #
@@ -1304,7 +1331,7 @@ ZINIT[EXTENDED_GLOB]=""
 #
 # $1 - plugin spec (4 formats: user---plugin, user/plugin, user (+ plugin in $2), plugin)
 # $2 - plugin (only when $1 - i.e. user - given)
-.zinit-show-report() {
+function .zinit-show-report() {
     setopt localoptions extendedglob warncreateglobal typesetsilent noksharrays
     .zinit-any-to-user-plugin "$1" "$2"
     local user="${reply[-2]}" plugin="${reply[-1]}" uspl2="${reply[-2]}${${reply[-2]:#(%|/)*}:+/}${reply[-1]}"
@@ -1394,24 +1421,27 @@ ZINIT[EXTENDED_GLOB]=""
         builtin print
     fi
 } # ]]]
+
 # FUNCTION: .zinit-show-all-reports [[[
 # Displays reports of all loaded plugins.
 #
 # User-action entry point.
-.zinit-show-all-reports() {
+function .zinit-show-all-reports() {
     local i
     for i in "${ZINIT_REGISTERED_PLUGINS[@]}"; do
         [[ "$i" = "_local/zinit" ]] && continue
         .zinit-show-report "$i"
     done
 } # ]]]
+
 # FUNCTION: .zinit-show-debug-report [[[
 # Displays dtrace report (data recorded in interactive session).
 #
 # User-action entry point.
-.zinit-show-debug-report() {
+function .zinit-show-debug-report() {
     .zinit-show-report "_dtrace/_dtrace"
 } # ]]]
+
 # FUNCTION: .zinit-update-or-status [[[
 # Updates (git pull) or does `git status' for given plugin.
 #
@@ -1420,7 +1450,7 @@ ZINIT[EXTENDED_GLOB]=""
 # $1 - "status" for status, other for update
 # $2 - plugin spec (4 formats: user---plugin, user/plugin, user (+ plugin in $2), plugin)
 # $3 - plugin (only when $1 - i.e. user - given)
-.zinit-update-or-status() {
+function .zinit-update-or-status() {
     # Set the localtraps option.
     emulate -LR zsh
     setopt extendedglob nullglob warncreateglobal typesetsilent noshortloops
@@ -1781,13 +1811,14 @@ ZINIT[EXTENDED_GLOB]=""
 
     return $retval
 } # ]]]
+
 # FUNCTION: .zinit-update-or-status-snippet [[[
 #
 # Implements update or status operation for snippet given by URL.
 #
 # $1 - "status" or "update"
 # $2 - snippet URL
-.zinit-update-or-status-snippet() {
+function .zinit-update-or-status-snippet() {
     local st="$1" URL="${2%/}" local_dir filename is_snippet
     (( ${#ICE[@]} > 0 )) && { ZINIT_SICE[$URL]=""; local nf="-nftid"; }
     local -A ICE2
@@ -1824,13 +1855,14 @@ ZINIT[EXTENDED_GLOB]=""
     return $retval
 }
 # ]]]
+
 # FUNCTION: .zinit-update-or-status-all [[[
 # Updates (git pull) or does `git status` for all existing plugins.
 # This includes also plugins that are not loaded into Zsh (but exist
 # on disk). Also updates (i.e. redownloads) snippets.
 #
 # User-action entry point.
-.zinit-update-or-status-all() {
+function .zinit-update-or-status-all() {
     emulate -LR zsh
     setopt extendedglob nullglob warncreateglobal typesetsilent noshortloops
 
@@ -1971,8 +2003,9 @@ ZINIT[EXTENDED_GLOB]=""
 
     return "$retval"
 } # ]]]
+
 # FUNCTION: .zinit-update-in-parallel [[[
-.zinit-update-all-parallel() {
+function .zinit-update-all-parallel() {
     emulate -LR zsh
     setopt extendedglob warncreateglobal typesetsilent \
         noshortloops nomonitor nonotify
@@ -2072,8 +2105,9 @@ ZINIT[EXTENDED_GLOB]=""
     # (( ${#PUAssocArray} > 0 )) && wait ${(k)PUAssocArray}
 }
 # ]]]
+
 # FUNCTION: .zinit-wait-for-update-jobs [[[
-.zinit-wait-for-update-jobs() {
+function .zinit-wait-for-update-jobs() {
     local tpe=$1
     if (( counter > OPTS[value] || main_counter == 0 )) {
         wait ${(k)PUAssocArray}
@@ -2094,12 +2128,13 @@ ZINIT[EXTENDED_GLOB]=""
     }
 }
 # ]]]
+
 # FUNCTION: .zinit-show-zstatus [[[
 # Shows Zinit status, i.e. number of loaded plugins,
 # of available completions, etc.
 #
 # User-action entry point.
-.zinit-show-zstatus() {
+function .zinit-show-zstatus() {
     builtin setopt localoptions nullglob extendedglob nokshglob noksharrays
 
     local infoc="${ZINIT[col-info2]}"
@@ -2166,11 +2201,12 @@ ZINIT[EXTENDED_GLOB]=""
 
     +zinit-message "Compiled plugins: {num}$count{rst}"
 } # ]]]
+
 # FUNCTION: .zinit-show-times [[[
 # Shows loading times of all loaded plugins.
 #
 # User-action entry point.
-.zinit-show-times() {
+function .zinit-show-times() {
     emulate -LR zsh
     setopt  extendedglob warncreateglobal noshortloops
 
@@ -2233,8 +2269,9 @@ ZINIT[EXTENDED_GLOB]=""
     builtin print "Total: $sum sec"
 }
 # ]]]
+
 # FUNCTION: .zinit-list-bindkeys [[[
-.zinit-list-bindkeys() {
+function .zinit-list-bindkeys() {
     local uspl2 uspl2col sw first=1
     local -a string_widget
 
@@ -2291,7 +2328,7 @@ ZINIT[EXTENDED_GLOB]=""
 # Displays list of plugins that are compiled.
 #
 # User-action entry point.
-.zinit-compiled() {
+function .zinit-compiled() {
     builtin setopt localoptions nullglob
 
     typeset -a matches m
@@ -2319,11 +2356,12 @@ ZINIT[EXTENDED_GLOB]=""
         builtin print "$file"
     done
 } # ]]]
+
 # FUNCTION: .zinit-compile-uncompile-all [[[
 # Compiles or uncompiles all existing (on disk) plugins.
 #
 # User-action entry point.
-.zinit-compile-uncompile-all() {
+function .zinit-compile-uncompile-all() {
     builtin setopt localoptions nullglob
 
     local compile="$1"
@@ -2348,6 +2386,7 @@ ZINIT[EXTENDED_GLOB]=""
         fi
     done
 } # ]]]
+
 # FUNCTION: .zinit-uncompile-plugin [[[
 # Uncompiles given plugin.
 #
@@ -2355,7 +2394,7 @@ ZINIT[EXTENDED_GLOB]=""
 #
 # $1 - plugin spec (4 formats: user---plugin, user/plugin, user (+ plugin in $2), plugin)
 # $2 - plugin (only when $1 - i.e. user - given)
-.zinit-uncompile-plugin() {
+function .zinit-uncompile-plugin() {
     builtin setopt localoptions nullglob
 
     .zinit-any-to-user-plugin "$1" "$2"
@@ -2392,7 +2431,7 @@ ZINIT[EXTENDED_GLOB]=""
 # installed and enabled.
 #
 # User-action entry point.
-.zinit-show-completions() {
+function .zinit-show-completions() {
     builtin setopt localoptions nullglob extendedglob nokshglob noksharrays
     local count="${1:-3}"
 
@@ -2477,6 +2516,7 @@ ZINIT[EXTENDED_GLOB]=""
         builtin print
     done
 } # ]]]
+
 # FUNCTION: .zinit-clear-completions [[[
 # Delete stray and improper completions.
 #
@@ -2484,7 +2524,7 @@ ZINIT[EXTENDED_GLOB]=""
 # installed and enabled.
 #
 # User-action entry point.
-.zinit-clear-completions() {
+function .zinit-clear-completions() {
     builtin setopt localoptions nullglob extendedglob nokshglob noksharrays
 
     typeset -a completions
@@ -2531,13 +2571,14 @@ ZINIT[EXTENDED_GLOB]=""
         fi
     done
 } # ]]]
+
 # FUNCTION: .zinit-search-completions [[[
 # While .zinit-show-completions() shows what completions are
 # installed, this functions searches through all plugin dirs
 # showing what's available in general (for installation).
 #
 # User-action entry point.
-.zinit-search-completions() {
+function .zinit-search-completions() {
     builtin setopt localoptions nullglob extendedglob nokshglob noksharrays
 
     typeset -a plugin_paths
@@ -2593,13 +2634,14 @@ ZINIT[EXTENDED_GLOB]=""
         fi
     done
 } # ]]]
+
 # FUNCTION: .zinit-cenable [[[
 # Disables given installed completion.
 #
 # User-action entry point.
 #
 # $1 - e.g. "_mkdir" or "mkdir"
-.zinit-cenable() {
+function .zinit-cenable() {
     local c="$1"
     c="${c#_}"
 
@@ -2642,13 +2684,14 @@ ZINIT[EXTENDED_GLOB]=""
 
     return 0
 } # ]]]
+
 # FUNCTION: .zinit-cdisable [[[
 # Enables given installed completion.
 #
 # User-action entry point.
 #
 # $1 - e.g. "_mkdir" or "mkdir"
-.zinit-cdisable() {
+function .zinit-cdisable() {
     local c="$1"
     c="${c#_}"
 
@@ -2698,7 +2741,7 @@ ZINIT[EXTENDED_GLOB]=""
 #
 # $1 - plugin spec (4 formats: user---plugin, user/plugin, user, plugin)
 # $2 - plugin (only when $1 - i.e. user - given)
-.zinit-cd() {
+function .zinit-cd() {
     builtin emulate -LR zsh
     builtin setopt extendedglob warncreateglobal typesetsilent rcquotes
 
@@ -2715,8 +2758,9 @@ ZINIT[EXTENDED_GLOB]=""
         return 1
     }
 } # ]]]
+
 # FUNCTION: .zinit-run-delete-hooks [[[
-.zinit-run-delete-hooks() {
+function .zinit-run-delete-hooks() {
     if [[ -n ${ICE[atdelete]} ]]; then
         .zinit-countdown "atdelete" && ( (( ${+ICE[nocd]} == 0 )) && \
                 { builtin cd -q "$5" && eval "${ICE[atdelete]}"; ((1)); } || \
@@ -2738,6 +2782,7 @@ ZINIT[EXTENDED_GLOB]=""
     done
 }
 # ]]]
+
 # FUNCTION: .zinit-delete [[[
 # Deletes plugin's or snippet's directory (in Zinit's home directory).
 #
@@ -2745,7 +2790,7 @@ ZINIT[EXTENDED_GLOB]=""
 #
 # $1 - snippet URL or plugin spec (4 formats: user---plugin, user/plugin, user, plugin)
 # $2 - plugin (only when $1 - i.e. user - given)
-.zinit-delete() {
+function .zinit-delete() {
     emulate -LR zsh
     setopt extendedglob warncreateglobal typesetsilent
 
@@ -2870,13 +2915,14 @@ builtin print -Pr \"\$ZINIT[col-obj]Done (with the exit code: \$_retval).%f%b\""
 
     return 0
 } # ]]]
+
 # FUNCTION: .zinit-confirm [[[
 # Prints given question, waits for "y" key, evals
 # given expression if "y" obtained
 #
 # $1 - question
 # $2 - expression
-.zinit-confirm() {
+function .zinit-confirm() {
     if (( OPTS[opt_-y,--yes] )); then
         integer retval
         eval "$2"; retval=$?
@@ -2901,6 +2947,7 @@ builtin print -Pr \"\$ZINIT[col-obj]Done (with the exit code: \$_retval).%f%b\""
     return 0
 }
 # ]]]
+
 # FUNCTION: .zinit-changes [[[
 # Shows `git log` of given plugin.
 #
@@ -2908,7 +2955,7 @@ builtin print -Pr \"\$ZINIT[col-obj]Done (with the exit code: \$_retval).%f%b\""
 #
 # $1 - plugin spec (4 formats: user---plugin, user/plugin, user, plugin)
 # $2 - plugin (only when $1 - i.e. user - given)
-.zinit-changes() {
+function .zinit-changes() {
     .zinit-any-to-user-plugin "$1" "$2"
     local user="${reply[-2]}" plugin="${reply[-1]}"
 
@@ -2919,13 +2966,14 @@ builtin print -Pr \"\$ZINIT[col-obj]Done (with the exit code: \$_retval).%f%b\""
         command git log -p --graph --decorate --date=relative -C -M
     )
 } # ]]]
+
 # FUNCTION: .zinit-recently [[[
 # Shows plugins that obtained commits in specified past time.
 #
 # User-action entry point.
 #
 # $1 - time spec, e.g. "1 week"
-.zinit-recently() {
+function .zinit-recently() {
     emulate -LR zsh
     builtin setopt nullglob extendedglob warncreateglobal \
                 typesetsilent noshortloops
@@ -2955,6 +3003,7 @@ builtin print -Pr \"\$ZINIT[col-obj]Done (with the exit code: \$_retval).%f%b\""
         popd >/dev/null
     done
 } # ]]]
+
 # FUNCTION: .zinit-create [[[
 # Creates a plugin, also on Github (if not "_local/name" plugin).
 #
@@ -2962,7 +3011,7 @@ builtin print -Pr \"\$ZINIT[col-obj]Done (with the exit code: \$_retval).%f%b\""
 #
 # $1 - (optional) plugin spec (4 formats: user---plugin, user/plugin, user, plugin)
 # $2 - (optional) plugin (only when $1 - i.e. user - given)
-.zinit-create() {
+function .zinit-create() {
     emulate -LR zsh
     setopt localoptions extendedglob warncreateglobal typesetsilent \
         noshortloops rcquotes
@@ -3088,6 +3137,7 @@ EOF
         builtin print "You're in plugin's repository folder, the files aren't added to git."
     fi
 } # ]]]
+
 # FUNCTION: .zinit-glance [[[
 # Shows colorized source code of plugin. Is able to use pygmentize,
 # highlight, GNU source-highlight.
@@ -3096,7 +3146,7 @@ EOF
 #
 # $1 - plugin spec (4 formats: user---plugin, user/plugin, user, plugin)
 # $2 - plugin (only when $1 - i.e. user - given)
-.zinit-glance() {
+function .zinit-glance() {
     .zinit-any-to-user-plugin "$1" "$2"
     local user="${reply[-2]}" plugin="${reply[-1]}"
 
@@ -3140,6 +3190,7 @@ EOF
         fi
     }
 } # ]]]
+
 # FUNCTION: .zinit-edit [[[
 # Runs $EDITOR on source of given plugin. If the variable is not
 # set then defaults to `vim'.
@@ -3148,7 +3199,7 @@ EOF
 #
 # $1 - plugin spec (4 formats: user---plugin, user/plugin, user, plugin)
 # $2 - plugin (only when $1 - i.e. user - given)
-.zinit-edit() {
+function .zinit-edit() {
     local -A ICE2
     local local_dir filename is_snippet the_id="$1${${1:#(%|/)*}:+${2:+/}}$2"
 
@@ -3172,6 +3223,7 @@ EOF
     "${EDITOR:-vim}" "$local_dir"
     return 0
 } # ]]]
+
 # FUNCTION: .zinit-stress [[[
 # Compiles plugin with various options on and off to see
 # how well the code is written. The options are:
@@ -3183,7 +3235,7 @@ EOF
 #
 # $1 - plugin spec (4 formats: user---plugin, user/plugin, user, plugin)
 # $2 - plugin (only when $1 - i.e. user - given)
-.zinit-stress() {
+function .zinit-stress() {
     .zinit-any-to-user-plugin "$1" "$2"
     local user="${reply[-2]}" plugin="${reply[-1]}"
 
@@ -3223,21 +3275,23 @@ EOF
     command rm -f "${fname}.zwc"
     (( compiled )) && zcompile -U "$fname"
 } # ]]]
+
 # FUNCTION: .zinit-list-compdef-replay [[[
 # Shows recorded compdefs (called by plugins loaded earlier).
 # Plugins often call `compdef' hoping for `compinit' being
 # already ran. Zinit solves this by recording compdefs.
 #
 # User-action entry point.
-.zinit-list-compdef-replay() {
+function .zinit-list-compdef-replay() {
     builtin print "Recorded compdefs:"
     local cdf
     for cdf in "${ZINIT_COMPDEF_REPLAY[@]}"; do
         builtin print "compdef ${(Q)cdf}"
     done
 } # ]]]
+
 # FUNCTION: .zinit-ls [[[
-.zinit-ls() {
+function .zinit-ls() {
     (( ${+commands[tree]} )) || {
         builtin print "${ZINIT[col-error]}No \`tree' program, it is required by the subcommand \`ls\'${ZINIT[col-rst]}"
         builtin print "Download from: http://mama.indstate.edu/users/ice/tree/"
@@ -3265,12 +3319,13 @@ EOF
     )
 }
 # ]]]
+
 # FUNCTION: .zinit-get-path [[[
 # Returns path of given ID-string, which may be a plugin-spec
 # (like "user/plugin" or "user" "plugin"), an absolute path
 # ("%" "/home/..." and also "%SNIPPETS/..." etc.), or a plugin
 # nickname (i.e. id-as'' ice-mod), or a snippet nickname.
-.zinit-get-path() {
+function .zinit-get-path() {
     emulate -LR zsh
     setopt extendedglob warncreateglobal typesetsilent noshortloops
 
@@ -3281,8 +3336,9 @@ EOF
     return $(( 1 - reply[3] ))
 }
 # ]]]
+
 # FUNCTION: .zinit-recall [[[
-.zinit-recall() {
+function .zinit-recall() {
     emulate -LR zsh
     setopt extendedglob warncreateglobal typesetsilent noshortloops
 
@@ -3331,11 +3387,12 @@ EOF
     } || builtin print -r -- "No such plugin or snippet"
 }
 # ]]]
+
 # FUNCTION: .zinit-module [[[
 # Function that has sub-commands passed as long-options (with two dashes, --).
 # It's an attempt to plugin only this one function into `zinit' function
 # defined in zinit.zsh, to not make this file longer than it's needed.
-.zinit-module() {
+function .zinit-module() {
     if [[ "$1" = "build" ]]; then
         .zinit-build-module "${@[2,-1]}"
     elif [[ "$1" = "info" ]]; then
@@ -3362,10 +3419,11 @@ EOF
     fi
 }
 # ]]]
+
 # FUNCTION: .zinit-build-module [[[
 # Performs ./configure && make on the module and displays information
 # how to load the module in .zshrc.
-.zinit-build-module() {
+function .zinit-build-module() {
     setopt localoptions localtraps
     trap 'return 1' INT TERM
     if command git -C "${ZINIT[MODULE_DIR]}" rev-parse 2>/dev/null; then
@@ -3416,7 +3474,7 @@ EOF
 # Shows usage information.
 #
 # User-action entry point.
-.zinit-help() {
+function .zinit-help() {
            builtin print -r -- "${ZINIT[col-p]}Usage${ZINIT[col-rst]}:
 —— -h|--help|help                – usage information
 —— man                           – manual

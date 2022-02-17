@@ -8,7 +8,7 @@
 #
 # $1 - plugin spec (4 formats: user---plugin, user/plugin, user, plugin)
 # $2 - plugin (only when $1 - i.e. user - given)
-.zinit-exists-physically() {
+function .zinit-exists-physically() {
     .zinit-any-to-user-plugin "$1" "$2"
     if [[ ${reply[-2]} = % ]]; then
         [[ -d ${reply[-1]} ]] && \
@@ -20,6 +20,7 @@
             return 1
     fi
 } # ]]]
+
 # FUNCTION: .zinit-exists-physically-message [[[
 # Checks if directory of given plugin exists in PLUGIN_DIR,
 # and outputs error message if it doesn't.
@@ -28,7 +29,7 @@
 #
 # $1 - plugin spec (4 formats: user---plugin, user/plugin, user, plugin)
 # $2 - plugin (only when $1 - i.e. user - given)
-.zinit-exists-physically-message() {
+function .zinit-exists-physically-message() {
     builtin emulate -LR zsh
     builtin setopt extendedglob warncreateglobal typesetsilent noshortloops rcquotes
     if ! .zinit-exists-physically "$1" "$2"; then
@@ -53,6 +54,7 @@
     fi
     return 0
 } # ]]]
+
 # FUNCTION: .zinit-first [[[
 # Finds the main file of plugin. There are multiple file name
 # formats, they are ordered in order starting from more correct
@@ -63,13 +65,13 @@
 #
 # $1 - plugin spec (4 formats: user---plugin, user/plugin, user, plugin)
 # $2 - plugin (only when $1 - i.e. user - given)
-.zinit-first() {
+function .zinit-first() {
     .zinit-any-to-user-plugin "$1" "$2"
     local user="${reply[-2]}" plugin="${reply[-1]}"
 
     .zinit-any-to-pid "$1" "$2"
     .zinit-get-object-path plugin "$REPLY"
-    integer ret=$? 
+    integer ret=$?
     local dname="$REPLY"
     (( ret )) && { reply=( "$dname" "" ); return 1; }
 
@@ -90,6 +92,7 @@
     reply=( "$dname" "${reply[-${#reply}]}" )
     return 0
 } # ]]]
+
 # FUNCTION: .zinit-any-colorify-as-uspl2 [[[
 # Returns ANSI-colorified "user/plugin" string, from any supported
 # plugin spec (user---plugin, user/plugin, user plugin, plugin).
@@ -97,7 +100,7 @@
 # $1 - plugin spec (4 formats: user---plugin, user/plugin, user, plugin)
 # $2 - plugin (only when $1 - i.e. user - given)
 # $REPLY = ANSI-colorified "user/plugin" string
-.zinit-any-colorify-as-uspl2() {
+function .zinit-any-colorify-as-uspl2() {
     .zinit-any-to-user-plugin "$1" "$2"
     local user="${reply[-2]}" plugin="${reply[-1]}"
     if [[ "$user" = "%" ]] {
@@ -121,11 +124,12 @@
         REPLY="${user:+${ZINIT[col-uname]}${user}${ZINIT[col-rst]}/}${ZINIT[col-pname]}${plugin}${ZINIT[col-rst]}"
     }
 } # ]]]
+
 # FUNCTION: .zinit-two-paths [[[
 # Obtains a snippet URL without specification if it is an SVN URL (points to
 # directory) or regular URL (points to file), returns 2 possible paths for
 # further examination
-.zinit-two-paths() {
+function .zinit-two-paths() {
     emulate -LR zsh
     setopt extendedglob typesetsilent warncreateglobal noshortloops
 
@@ -154,6 +158,7 @@
     reply=( "$local_dirA/$dirnameA" "$svn_dirA" "$local_dirB/$dirnameB" "${fileB_there[1]##$local_dirB/$dirnameB/#}" )
 }
 # ]]]
+
 # FUNCTION: .zinit-compute-ice [[[
 # Computes ICE array (default, it can be specified via $3) from a) input
 # ICE, b) static ice, c) saved ice, taking priorities into account. Also
@@ -170,7 +175,7 @@
 # $4 - name of output string parameter, to hold path to directory ("local_dir")
 # $5 - name of output string parameter, to hold filename ("filename")
 # $6 - name of output string parameter, to hold is-snippet 0/1-bool ("is_snippet")
-.zinit-compute-ice() {
+function .zinit-compute-ice() {
     emulate -LR zsh
     setopt extendedglob typesetsilent warncreateglobal noshortloops
 
@@ -237,7 +242,11 @@
             ___sice[svn]=""
             ___local_dir="$___s_path"
         else
-            [[ ! -e "$___path" ]] && { builtin print -r -- "No such snippet, looked at paths (1): $___s_path, and: $___path"; return 1; }
+            [[ ! -e "$___path" ]] && \
+                {
+                    builtin print -r -- "No such snippet, looked at paths (1): $___s_path, and: $___path";
+                    return 1;
+                }
             unset '___sice[svn]'
             ___local_dir="$___path"
         fi
@@ -319,6 +328,7 @@
     return 0
 }
 # ]]]
+
 # FUNCTION: .zinit-store-ices [[[
 # Saves ice mods in given hash onto disk.
 #
@@ -328,7 +338,7 @@
 # $4 - additional keys of hash to store, empty-meaningful ices, space separated
 # $5 – the URL, if applicable
 # $6 – the mode (1 - svn, 0 - single file), if applicable
-.zinit-store-ices() {
+function .zinit-store-ices() {
     local ___pfx="$1" ___ice_var="$2" \
           ___add_ices="$3" ___add_ices2="$4" \
           url="$5" mode="$6"
@@ -379,10 +389,11 @@
     done
 }
 # ]]]
+
 # FUNCTION: .zinit-countdown [[[
 # Displays a countdown 5...4... etc. and returns 0 if it
 # sucessfully reaches 0, or 1 if Ctrl-C will be pressed.
-.zinit-countdown() {
+function .zinit-countdown() {
     (( !${+ICE[countdown]} )) && return 0
 
     emulate -L zsh -o extendedglob

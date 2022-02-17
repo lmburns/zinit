@@ -2,7 +2,7 @@
 # Copyright (c) 2016-2020 Sebastian Gniazdowski and contributors.
 
 # FUNCTION: :zinit-tmp-subst-source [[[
-:zinit-tmp-subst-source() {
+function :zinit-tmp-subst-source() {
     local -a ___substs ___ab
     ___substs=( "${(@s.;.)ICE[subst]}" )
     if [[ -n ${(M)___substs:#*\\(#e)} ]] {
@@ -32,13 +32,14 @@
     builtin eval "$___data"
 }
 # ]]]
+
 # FUNCTION: .zinit-service [[[
 # Handles given service, i.e. obtains lock, runs it, or waits if no lock
 #
 # $1 - type "p" or "s" (plugin or snippet)
 # $2 - mode - for plugin (light or load)
 # $3 - id - URL or plugin ID or alias name (from id-as'')
-.zinit-service() {
+function .zinit-service() {
     emulate -LR zsh
     setopt extendedglob warncreateglobal typesetsilent noshortloops
 
@@ -74,8 +75,9 @@
     done >>! "$ZSRV_WORK_DIR/$ZSRV_ID".log 2>&1
 }
 # ]]]
+
 # FUNCTION: .zinit-wrap-track-functions [[[
-.zinit-wrap-track-functions() {
+function .zinit-wrap-track-functions() {
     local user="$1" plugin="$2" id_as="$3" f
     local -a wt
     wt=( ${(@s.;.)ICE[wrap-track]} )
@@ -104,7 +106,7 @@ function $f {
 
 # FUNCTION: .zinit-debug-start [[[
 # Starts Dtrace, i.e. session tracking for changes in Zsh state.
-.zinit-debug-start() {
+function .zinit-debug-start() {
     if [[ ${ZINIT[DTRACE]} = 1 ]]; then
         +zinit-message "{error}Dtrace is already active, stop it first with \`dstop'{rst}"
         return 1
@@ -117,9 +119,10 @@ function $f {
     # Full shadeing on
     .zinit-tmp-subst-on dtrace
 } # ]]]
+
 # FUNCTION: .zinit-debug-stop [[[
 # Stops Dtrace, i.e. session tracking for changes in Zsh state.
-.zinit-debug-stop() {
+function .zinit-debug-stop() {
     ZINIT[DTRACE]=0
 
     # Shadowing fully off
@@ -128,14 +131,16 @@ function $f {
     # Gather end data now, for diffing later
     .zinit-diff _dtrace/_dtrace end
 } # ]]]
+
 # FUNCTION: .zinit-clear-debug-report [[[
 # Forgets dtrace repport gathered up to this moment.
-.zinit-clear-debug-report() {
+function .zinit-clear-debug-report() {
     .zinit-clear-report-for _dtrace/_dtrace
 } # ]]]
+
 # FUNCTION: .zinit-debug-unload [[[
 # Reverts changes detected by dtrace run.
-.zinit-debug-unload() {
+function .zinit-debug-unload() {
     (( ${+functions[.zinit-unload]} )) || builtin source "${ZINIT[BIN_DIR]}/zinit-autoload.zsh" || return 1
     if [[ ${ZINIT[DTRACE]} = 1 ]]; then
         +zinit-message "{error}Dtrace is still active, stop it first with \`dstop'{rst}"
