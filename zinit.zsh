@@ -830,7 +830,10 @@ function .zinit-tmp-subst-off() {
             shift
             continue
         else
-            [[ -z ${ZINIT_SNIPPETS[PZT::modules/$1${ICE[svn]-/init.zsh}]} && -z ${ZINIT_SNIPPETS[https://github.com/sorin-ionescu/prezto/trunk/modules/$1${ICE[svn]-/init.zsh}]} ]] && .zinit-load-snippet PZT::modules/"$1${ICE[svn]-/init.zsh}"
+            [[ -z ${ZINIT_SNIPPETS[PZT::modules/$1${ICE[svn]-/init.zsh}]} && \
+               -z ${ZINIT_SNIPPETS[https://github.com/sorin-ionescu/prezto/trunk/modules/$1${ICE[svn]-/init.zsh}]}
+            ]] && \
+                .zinit-load-snippet PZT::modules/"$1${ICE[svn]-/init.zsh}"
             shift
         fi
     done
@@ -1763,7 +1766,7 @@ function .zinit-load-snippet() {
 #
 # $1 - plugin spec (4 formats: user---plugin, user/plugin, user, plugin)
 # $2 - plugin name, if the third format is used
-function .zinit-load () {
+function .zinit-load() {
     typeset -F 3 SECONDS=0
     local ___mode="$3" ___rst=0 ___retval=0 ___key
     .zinit-any-to-user-plugin "$1" "$2"
@@ -2672,7 +2675,11 @@ function .zinit-setup-params() {
 # $5 - mode: load or light
 # $6 - the plugin-spec or snippet URL or alias name (from id-as'')
 function .zinit-run-task() {
-    local ___pass="$1" ___t="$2" ___tpe="$3" ___idx="$4" ___mode="$5" ___id="${(Q)6}" ___opt="${(Q)7}" ___action ___s=1 ___retval=0
+    local \
+        ___pass="$1"       ___t="$2"    ___tpe="$3"     \
+          ___idx="$4"      ___mode="$5" ___id="${(Q)6}" \
+          ___opt="${(Q)7}" ___action    ___s=1          \
+          ___retval=0
 
     local -A ICE ZINIT_ICE
     ICE=( "${(@Q)${(z@)ZINIT[WAIT_ICE_${___idx}]}}" )
@@ -2916,50 +2923,55 @@ function zinit() {
     [[ -o ksharrays ]] && ___correct=1
 
     local -A ___opt_map OPTS
-    ___opt_map=(
-        -q         opt_-q,--quiet:"update:[Turn off almost-all messages from the {cmd}update{rst} operation {b-lhi}FOR the objects{rst} which don't have any {b-lhi}new version{rst} available.] *:[Turn off any (or: almost-any) messages from the operation.]"
-        --quiet    opt_-q,--quiet
-        -v         opt_-v,--verbose:"Turn on more messages from the operation."
-        --verbose  opt_-v,--verbose
-        -r         opt_-r,--reset:"Reset the repository before updating (or remove the files for single-file snippets and gh-r plugins)."
-        --reset    opt_-r,--reset
-        -a         opt_-a,--all:"delete:[Delete {hi}all{rst} plugins and snippets.] update:[Update {b-lhi}all{rst} plugins and snippets.]"
-        --all      opt_-a,--all
-        -c         opt_-c,--clean:"Delete {b-lhi}only{rst} the {b-lhi}currently-not loaded{rst} plugins and snippets."
-        --clean    opt_-c,--clean
-        -y         opt_-y,--yes:"Automatically confirm any yes/no prompts."
-        --yes      opt_-y,--yes
-        -f         opt_-f,--force:"Force new download of the snippet file."
-        --force    opt_-f,--force
-        -p         opt_-p,--parallel:"Turn on concurrent, multi-thread update (of all objects)."
-        --parallel opt_-p,--parallel
-        -s         opt_-s,--snippets:"snippets:[Update only snippets (i.e.: skip updating plugins).] times:[Show times in seconds instead of milliseconds.]"
-        --snippets opt_-s,--snippets
-        -L         opt_-l,--plugins:"Update only plugins (i.e.: skip updating snippets)."
-        --plugins  opt_-l,--plugins
-        -h         opt_-h,--help:"Show this help message."
-        --help     opt_-h,--help
-        -u         opt_-u,--urge:"Cause all the hooks like{ehi}:{rst} {ice}atpull{apo}''{rst}, {ice}cp{apo}''{rst}, etc. to execute even when there aren't any new commits {b}/{rst} any new version of the {b}{meta}gh-r{rst} file {b}/{rst} etc.{…} available for download {ehi}{lr}{rst} simulate a non-empty update."
-        --urge     opt_-u,--urge
-        -n         opt_-n,--no-pager:"Disable the use of the pager."
-        --no-pager opt_-n,--no-pager
-        -m         opt_-m,--moments:"Show the {apo}*{b-lhi}moments{apo}*{rst} of object (i.e.: a plugin or snippet) loading time."
-        --moments  opt_-m,--moments
-        -b         opt_-b,--bindkeys:"Load in light mode, however do still track {cmd}bindkey{rst} calls (to allow remapping the keys bound)."
-        --bindkeys opt_-b,--bindkeys
-        -x         opt_-x,--command:"Load the snippet as a {cmd}command{rst}, i.e.: add it to {var}\$PATH{rst} and set {b-lhi}+x{rst} on it."
-        --command  opt_-x,--command
-        env-whitelist "-h|--help|-v|--verbose"
-        update        "-L|--plugins|-s|--snippets|-p|--parallel|-a|--all|\
--q|--quiet|-r|--reset|-u|--urge|-n|--no-pager|-v|--verbose|-h|--help"
-        delete        "-a|--all|-c|--clean|-y|--yes|-q|--quiet|-h|--help"
-        unload        "-h|--help|-q|--quiet"
-        cdclear       "-h|--help|-q|--quiet"
-        cdreplay      "-h|--help|-q|--quiet"
-        times         "-h|--help|-m|-s"
-        light         "-h|--help|-b"
-        snippet       "-h|--help|-f|--force|--command|-x"
-    )
+___opt_map=(
+-q            opt_-q,--quiet:"update:[Turn off almost-all messages from the {cmd}update{rst} operation {b-lhi}FOR
+                the objects{rst} which don't have any {b-lhi}new version{rst} available.]
+                *:[Turn off any (or: almost-any) messages from the operation.]"
+--quiet       opt_-q,--quiet
+-v            opt_-v,--verbose:"Turn on more messages from the operation."
+--verbose     opt_-v,--verbose
+-r            opt_-r,--reset:"Reset the repository before updating (or remove the files for single-file snippets and gh-r plugins)."
+--reset       opt_-r,--reset
+-a            opt_-a,--all:"delete:[Delete {hi}all{rst} plugins and snippets.] update:[Update {b-lhi}all{rst} plugins and snippets.]"
+--all         opt_-a,--all
+-c            opt_-c,--clean:"Delete {b-lhi}only{rst} the {b-lhi}currently-not loaded{rst} plugins and snippets."
+--clean       opt_-c,--clean
+-y            opt_-y,--yes:"Automatically confirm any yes/no prompts."
+--yes         opt_-y,--yes
+-f            opt_-f,--force:"Force new download of the snippet file."
+--force       opt_-f,--force
+-p            opt_-p,--parallel:"Turn on concurrent, multi-thread update (of all objects)."
+--parallel    opt_-p,--parallel
+-s            opt_-s,--snippets:"snippets:[Update only snippets (i.e.: skip updating plugins).] times:[Show times in seconds instead of milliseconds.]"
+--snippets    opt_-s,--snippets
+-L            opt_-l,--plugins:"Update only plugins (i.e.: skip updating snippets)."
+--plugins     opt_-l,--plugins
+-h            opt_-h,--help:"Show this help message."
+--help        opt_-h,--help
+-u            opt_-u,--urge:"Cause all the hooks like{ehi}:{rst} {ice}atpull{apo}''{rst}, {ice}cp{apo}''{rst}, etc.
+                to execute even when there aren't any new commits {b}/{rst} any new version of the {b}{meta}gh-r{rst}
+                file {b}/{rst} etc.{…} available for download {ehi}{lr}{rst} simulate a non-empty update."
+--urge        opt_-u,--urge
+-n            opt_-n,--no-pager:"Disable the use of the pager."
+--no-pager    opt_-n,--no-pager
+-m            opt_-m,--moments:"Show the {apo}*{b-lhi}moments{apo}*{rst} of object (i.e.: a plugin or snippet) loading time."
+--moments     opt_-m,--moments
+-b            opt_-b,--bindkeys:"Load in light mode, however do still track {cmd}bindkey{rst} calls (to allow remapping the keys bound)."
+--bindkeys    opt_-b,--bindkeys
+-x            opt_-x,--command:"Load the snippet as a {cmd}command{rst}, i.e.: add it to {var}\$PATH{rst} and set {b-lhi}+x{rst} on it."
+--command     opt_-x,--command
+env-whitelist "-h|--help|-v|--verbose"
+update        "-L|--plugins|-s|--snippets|-p|--parallel|-a|--all|-q|--quiet|-r|--reset|-u|--urge|-n|--no-pager|-v|--verbose|-h|--help"
+delete        "-a|--all|-c|--clean|-y|--yes|-q|--quiet|-h|--help"
+unload        "-h|--help|-q|--quiet"
+cdclear       "-h|--help|-q|--quiet"
+cdreplay      "-h|--help|-q|--quiet"
+times         "-h|--help|-m|-s"
+light         "-h|--help|-b"
+snippet       "-h|--help|-f|--force|--command|-x"
+)
+
+    ___opt_map=( ${(kv)___opt_map//$'\n'[[:space:]]##/} )
 
     cmd="$1"
     if [[ $cmd == (times|unload|env-whitelist|update|snippet|load|light|cdreplay|\
@@ -3067,7 +3079,9 @@ env-whitelist|bindkeys|module|add-fpath|fpath|run${reply:+|${(~j:|:)"${reply[@]#
                     integer  ___is_snippet=${${(M)___is_snippet:#-1}:-0}
                     () {
                         builtin setopt localoptions extendedglob
-                        if [[ $___is_snippet -ge 0 && ( -n ${ICE[is-snippet]+1} || $___etid = ((#i)(http(s|)|ftp(s|)):/|(${(~kj.|.)ZINIT_1MAP}))* ) ]] {
+                        if [[ $___is_snippet -ge 0 && ( -n ${ICE[is-snippet]+1} || \
+                              $___etid = ((#i)(http(s|)|ftp(s|)):/|(${(~kj.|.)ZINIT_1MAP}))* )
+                        ]] {
                             ___is_snippet=1
                         }
                     } "$@"
@@ -3165,8 +3179,11 @@ env-whitelist|bindkeys|module|add-fpath|fpath|run${reply:+|${(~j:|:)"${reply[@]#
                         eval "${ICE[if]}" || { (( $# )) && shift; continue; };
                     }
 
+                    # FIX: Allow for subsitution using @zinit-substitute
                     # Iterate over items in has''
                     for REPLY ( ${(@)${(@s.;.)ICE[has]}//((#s)[[:space:]]##|[[:space:]]##(#e))/} ) {
+                        # ICE[param]="$ICE[has] -> ${${(s:/:)___ehid}[2]}"
+                        # @zinit-substitute 'REPLY'
                         eval "${${(M)REPLY:#(#b)(\!|)(*)}:+(( $match[1] $+commands[$match[2]] ))}" || \
                             { (( $# )) && shift; continue 2; }
                     }
