@@ -1174,7 +1174,7 @@ function @zinit-substitute() {
         local ___param ___from ___to
         for ___param ( ${___params[@]} ) {
             local ___from=${${___param%%([[:space:]]|)(->|→)*}##[[:space:]]##} \
-                ___to=${${___param#*(->|→)([[:space:]]|)}%[[:space:]]}
+                  ___to=${${___param#*(->|→)([[:space:]]|)}%[[:space:]]}
             ___from=${___from//((#s)[[:space:]]##|[[:space:]]##(#e))/}
             ___to=${___to//((#s)[[:space:]]##|[[:space:]]##(#e))/}
             ZINIT[PARAM_SUBST]+="%${(q)___from}% ${(q)___to} "
@@ -1348,8 +1348,9 @@ function .zinit-load-snippet() {
     typeset -F 3 SECONDS=0
     local -a opts
     zparseopts -E -D -a opts f -command || \
-        { +zinit-message \
-            "{u-warn}Error{b-warn}:{rst} Incorrect options (accepted ones: {opt}-f{rst}, {opt}--command{rst}).";
+        {
+            +zinit-message \
+                "{u-warn}Error{b-warn}:{rst} Incorrect options (accepted ones: {opt}-f{rst}, {opt}--command{rst}).";
             return 1;
         }
     local url="$1"
@@ -1581,7 +1582,8 @@ function .zinit-load-snippet() {
             {
                 .zinit-add-report \
                     "$id_as" \
-                    "Note: Starting to track the atload'!…' ice…"; ZERO="$local_dir/$dirname/-atload-"; local ___oldcd="$PWD";
+                    "Note: Starting to track the atload'!…' ice…"; ZERO="$local_dir/$dirname/-atload-";
+                local ___oldcd="$PWD";
                 (( ${+ICE[nocd]} == 0 )) && \
                     {
                         # CHANGED: builtin on second eval
@@ -1770,7 +1772,9 @@ function .zinit-load() {
     typeset -F 3 SECONDS=0
     local ___mode="$3" ___rst=0 ___retval=0 ___key
     .zinit-any-to-user-plugin "$1" "$2"
-    local ___user="${reply[-2]}" ___plugin="${reply[-1]}" ___id_as="${ICE[id-as]:-${reply[-2]}${${reply[-2]:#(%|/)*}:+/}${reply[-1]}}"
+    local ___user="${reply[-2]}" \
+          ___plugin="${reply[-1]}" \
+          ___id_as="${ICE[id-as]:-${reply[-2]}${${reply[-2]:#(%|/)*}:+/}${reply[-1]}}"
     local ___pdir_path="${${${(M)___user:#%}:+$___plugin}:-${ZINIT[PLUGINS_DIR]}/${___id_as//\//---}}"
     local ___pdir_orig="$___pdir_path"
     ZINIT[CUR_USR]="$___user" ZINIT[CUR_PLUGIN]="$___plugin" ZINIT[CUR_USPL2]="$___id_as"
@@ -2304,7 +2308,11 @@ function .zinit-compdef-clear() {
 # $2, ... - the text
 function .zinit-add-report() {
     # Use zinit binary module if available.
-    [[ -n $1 ]] && { (( ${+builtins[zpmod]} && 0 )) && zpmod report-append "$1" "$2"$'\n' || ZINIT_REPORTS[$1]+="$2"$'\n'; }
+    [[ -n $1 ]] && \
+        {
+            (( ${+builtins[zpmod]} && 0 )) && zpmod report-append "$1" "$2"$'\n' || ZINIT_REPORTS[$1]+="$2"$'\n';
+        }
+
     [[ ${ZINIT[DTRACE]} = 1 ]] && \
         {
             (( ${+builtins[zpmod]} )) && zpmod report-append _dtrace/_dtrace "$2"$'\n' || \
